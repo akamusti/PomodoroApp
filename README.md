@@ -20,9 +20,9 @@ Projemizin .exe dosyasının VirusTotal taramasında bu tür uyarılara rastlanm
 
 Eğer indirdiğiniz .exe dosyası hakkında bir antivirüs uyarısı alırsanız, bu durumun genellikle yanlış pozitif olduğunu ve uygulamamızın güvenli olduğunu bilmenizi isteriz.
 
-*-Python ile derlenmiş yürütülebilir dosyalarda bu tür yanlış alarmlar sıkça görülür.
+*-Python ile derlenmiş yürütülebilir dosyalarda bu tür yanlış alarmlar sıkça görülür.*
 
--Uygulama sadece Pomodoro zamanlayıcı işlevselliğini sunar ve sisteminizde herhangi bir yetkisiz işlem yapmaz.*
+*-Uygulama sadece Pomodoro zamanlayıcı işlevselliğini sunar ve sisteminizde herhangi bir yetkisiz işlem yapmaz.*
 
 # Katkıda Bulunmak İsteyenler İçin:
 Her türlü katkıya açığız! Eğer bir hata bulursanız veya yeni bir özellik eklemek isterseniz:
