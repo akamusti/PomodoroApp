@@ -13,6 +13,10 @@ Bu, Python ile geliştirilmiş basit ve etkili bir komut satırı (CLI) tabanlı
  
  **Çapraz Platform (PyInstaller ile):** pomodoro.exe olarak derlenmiş versiyonu sayesinde, Python yüklü olmayan Windows kullanıcıları da uygulamayı doğrudan çalıştırabilir.
 
+ ## Uygulama Ekran Görüntüsü
+
+![Pomodoro Ekran Görüntüsü](https://github.com/insanmusti/PomodoroApp/blob/main/pomodoro.png?raw=true)
+
 # Önemli Not: Antivirüs Uyarıları Hakkında
 PyInstaller gibi araçlar kullanılarak Python betiklerinden oluşturulan yürütülebilir (.exe) dosyaları, bazı antivirüs yazılımları tarafından yanlışlıkla "kötü amaçlı" olarak algılanabilir **(false positive)**. Bu durum, PyInstaller'ın paketleme yönteminin bazen kötü amaçlı yazılımların kullandığı yöntemlerle benzerlik göstermesinden kaynaklanmaktadır.
 
