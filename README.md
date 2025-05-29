@@ -3,11 +3,11 @@
 Bu, Python ile geliştirilmiş basit ve etkili bir komut satırı (CLI) tabanlı Pomodoro Zamanlayıcı uygulamasıdır. Odaklanma ve mola döngülerini yöneterek verimliliğinizi artırmanıza yardımcı olmak için tasarlanmıştır. Minimalist bir arayüze sahiptir ve terminalde çalışır.
 
 # Özellikler
-**Ayarlanabilir Süreler:** Çalışma, kısa mola ve uzun mola sürelerini dilediğiniz gibi ayarlayabilme.
-**İlerleme Çubuğu:** Aktif döngü için terminalde görsel bir ilerleme çubuğu ve yüzde gösterimi.
-**Döngü Takibi:** Kaçıncı Pomodoro döngüsünde olduğunuzu gösterir.
-**Basit ve Hafif:** Ek bağımlılıklar olmadan, sade ve hızlı çalışan bir uygulama.
-**Çapraz Platform (PyInstaller ile):** pomodoro.exe olarak derlenmiş versiyonu sayesinde, Python yüklü olmayan Windows kullanıcıları da uygulamayı doğrudan çalıştırabilir.
+# **Ayarlanabilir Süreler:** Çalışma, kısa mola ve uzun mola sürelerini dilediğiniz gibi ayarlayabilme.
+# **İlerleme Çubuğu:** Aktif döngü için terminalde görsel bir ilerleme çubuğu ve yüzde gösterimi.
+# **Döngü Takibi:** Kaçıncı Pomodoro döngüsünde olduğunuzu gösterir.
+# **Basit ve Hafif:** Ek bağımlılıklar olmadan, sade ve hızlı çalışan bir uygulama.
+# **Çapraz Platform (PyInstaller ile):** pomodoro.exe olarak derlenmiş versiyonu sayesinde, Python yüklü olmayan Windows kullanıcıları da uygulamayı doğrudan çalıştırabilir.
 
 # Önemli Not: Antivirüs Uyarıları Hakkında
 PyInstaller gibi araçlar kullanılarak Python betiklerinden oluşturulan yürütülebilir (.exe) dosyaları, bazı antivirüs yazılımları tarafından yanlışlıkla "kötü amaçlı" olarak algılanabilir **(false positive)**. Bu durum, PyInstaller'ın paketleme yönteminin bazen kötü amaçlı yazılımların kullandığı yöntemlerle benzerlik göstermesinden kaynaklanmaktadır.
