@@ -4,9 +4,13 @@ Bu, Python ile geliştirilmiş basit ve etkili bir komut satırı (CLI) tabanlı
 
 # Özellikler
  **Ayarlanabilir Süreler:** Çalışma, kısa mola ve uzun mola sürelerini dilediğiniz gibi ayarlayabilme.
+ 
  **İlerleme Çubuğu:** Aktif döngü için terminalde görsel bir ilerleme çubuğu ve yüzde gösterimi.
+ 
  **Döngü Takibi:** Kaçıncı Pomodoro döngüsünde olduğunuzu gösterir.
+ 
  **Basit ve Hafif:** Ek bağımlılıklar olmadan, sade ve hızlı çalışan bir uygulama.
+ 
  **Çapraz Platform (PyInstaller ile):** pomodoro.exe olarak derlenmiş versiyonu sayesinde, Python yüklü olmayan Windows kullanıcıları da uygulamayı doğrudan çalıştırabilir.
 
 # Önemli Not: Antivirüs Uyarıları Hakkında
