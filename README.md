@@ -17,17 +17,6 @@ Bu, Python ile geliştirilmiş basit ve etkili bir komut satırı (CLI) tabanlı
 
 ![Pomodoro Ekran Görüntüsü](https://github.com/insanmusti/PomodoroApp/blob/main/pomodoro.png?raw=true)
 
-# Önemli Not: Antivirüs Uyarıları Hakkında
-PyInstaller gibi araçlar kullanılarak Python betiklerinden oluşturulan yürütülebilir (.exe) dosyaları, bazı antivirüs yazılımları tarafından yanlışlıkla "kötü amaçlı" olarak algılanabilir **(false positive)**. Bu durum, PyInstaller'ın paketleme yönteminin bazen kötü amaçlı yazılımların kullandığı yöntemlerle benzerlik göstermesinden kaynaklanmaktadır.
-
-Projemizin .exe dosyasının VirusTotal taramasında bu tür uyarılara rastlanması olasıdır. Örneğin, pomodoro.exe dosyasının 71 güvenlik yazılımından 8'i tarafından bu şekilde işaretlendiği görüldü.
-
-Eğer indirdiğiniz .exe dosyası hakkında bir antivirüs uyarısı alırsanız, bu durumun genellikle yanlış pozitif olduğunu ve uygulamamızın güvenli olduğunu bilmenizi isteriz.
-
-*-Python ile derlenmiş yürütülebilir dosyalarda bu tür yanlış alarmlar sıkça görülür.*
-
-*-Uygulama sadece Pomodoro zamanlayıcı işlevselliğini sunar ve sisteminizde herhangi bir yetkisiz işlem yapmaz.*
-
 # Katkıda Bulunmak İsteyenler İçin:
 Her türlü katkıya açığız! Eğer bir hata bulursanız veya yeni bir özellik eklemek isterseniz:
 
