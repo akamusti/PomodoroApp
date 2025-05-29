@@ -1,5 +1,5 @@
 # 🍅 PomodoroApp
-# Genel Bakış
+# Genel Bakış (SONUNA KADAR OKUYUNUZ)
 Bu, Python ile geliştirilmiş basit ve etkili bir komut satırı (CLI) tabanlı Pomodoro Zamanlayıcı uygulamasıdır. Odaklanma ve mola döngülerini yöneterek verimliliğinizi artırmanıza yardımcı olmak için tasarlanmıştır. Minimalist bir arayüze sahiptir ve terminalde çalışır.
 
 # Özellikler
