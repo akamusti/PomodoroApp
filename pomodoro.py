@@ -1,8 +1,6 @@
 import time
 import os
 
-# Sese ihtiyaç olmadığı için playsound importunu ve kontrolünü kaldırıyoruz.
-# SOUND_ENABLED = False yapabiliriz veya tamamen kaldırabiliriz.
 
 CYCLE_COUNT = 4
 
