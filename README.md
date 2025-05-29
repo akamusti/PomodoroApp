@@ -10,8 +10,6 @@ Bu, Python ile geliştirilmiş basit ve etkili bir komut satırı (CLI) tabanlı
  **Döngü Takibi:** Kaçıncı Pomodoro döngüsünde olduğunuzu gösterir.
  
  **Basit ve Hafif:** Ek bağımlılıklar olmadan, sade ve hızlı çalışan bir uygulama.
- 
- **Çapraz Platform (PyInstaller ile):** pomodoro.exe olarak derlenmiş versiyonu sayesinde, Python yüklü olmayan Windows kullanıcıları da uygulamayı doğrudan çalıştırabilir.
 
  ## Uygulama Ekran Görüntüsü
 
