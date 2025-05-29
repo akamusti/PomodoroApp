@@ -19,13 +19,16 @@ PyInstaller gibi araçlar kullanılarak Python betiklerinden oluşturulan yürü
 Projemizin .exe dosyasının VirusTotal taramasında bu tür uyarılara rastlanması olasıdır. Örneğin, pomodoro.exe dosyasının 71 güvenlik yazılımından 8'i tarafından bu şekilde işaretlendiği görüldü.
 
 Eğer indirdiğiniz .exe dosyası hakkında bir antivirüs uyarısı alırsanız, bu durumun genellikle yanlış pozitif olduğunu ve uygulamamızın güvenli olduğunu bilmenizi isteriz.
+
 *-Python ile derlenmiş yürütülebilir dosyalarda bu tür yanlış alarmlar sıkça görülür.
+
 -Uygulama sadece Pomodoro zamanlayıcı işlevselliğini sunar ve sisteminizde herhangi bir yetkisiz işlem yapmaz.*
 
 # Katkıda Bulunmak İsteyenler İçin:
 Her türlü katkıya açığız! Eğer bir hata bulursanız veya yeni bir özellik eklemek isterseniz:
 
 -Bir issue açın.
+
 -Bir pull request gönderin.
 
 # Lisans
