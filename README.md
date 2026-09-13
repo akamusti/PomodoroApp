@@ -34,13 +34,6 @@ gcc -O2 -o pomodoro-bin pomodoro.c
 
 ![Pomodoro Ekran Görüntüsü](https://github.com/insanmusti/PomodoroApp/blob/main/pomodoro.png?raw=true)
 
-# Katkıda Bulunmak İsteyenler İçin:
-Her türlü katkıya açığız! Eğer bir hata bulursanız veya yeni bir özellik eklemek isterseniz:
-
--Bir issue açın.
-
--Bir pull request gönderin.
-
 # Lisans
 Lisans
 Bu proje, [GNU General Public License v3.0 ](https://www.gnu.org/licenses/gpl-3.0.en.html) lisansı altında yayımlanmıştır. Daha fazla bilgi için LICENSE dosyasına bakınız.
