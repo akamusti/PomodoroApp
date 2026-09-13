@@ -2,6 +2,25 @@
 # Genel Bakış (SONUNA KADAR OKUYUNUZ)
 Bu, Python ile geliştirilmiş basit ve etkili bir komut satırı (CLI) tabanlı Pomodoro Zamanlayıcı uygulamasıdır. Odaklanma ve mola döngülerini yöneterek verimliliğinizi artırmanıza yardımcı olmak için tasarlanmıştır. Minimalist bir arayüze sahiptir ve terminalde çalışır.
 
+# Nasıl Çalıştırılır
+Klasöre girip şunlardan birini kullanman yeterli. Süreleri yazıp Enter'a basıyorsun, çıkmak için Ctrl+C.
+
+Python ile:
+```
+python3 pomodoro.py
+```
+
+Python'suz (Bash):
+```
+bash pomodoro.sh
+```
+
+Python'suz (Binary):
+```
+gcc -O2 -o pomodoro-bin pomodoro.c
+./pomodoro-bin
+```
+
 # Özellikler
  **Ayarlanabilir Süreler:** Çalışma, kısa mola ve uzun mola sürelerini dilediğiniz gibi ayarlayabilme.
  
