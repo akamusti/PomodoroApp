@@ -40,13 +40,20 @@ jobs:
           tagName: v__VERSION__
           releaseName: 'Pomodoro App v__VERSION__'
           releaseBody: |
-            ## 🍅 Pomodoro Linux Desktop Release v__VERSION__
+            ## Pomodoro Linux Desktop Release v__VERSION__
 
-            ### ✨ What's Included:
+            ### What's New in v__VERSION__:
+            - **Tactile Chronometer UI:** Grounded, hardware-inspired matte interface with a 60-tick precision SVG dial.
+            - **Light & Dark Themes:** Warm carbon dark mode and tactile paper light mode (`T` shortcut).
+            - **Focus Note & Daily Telemetry:** Inline task note input and daily focused minutes counter.
+            - **Keyboard Shortcuts:** Control sessions with `Space` (Start/Pause), `R` (Reset), `S` (Skip), `M` (Mute), and `T` (Theme).
+            - **Decoupled Timer Engine:** Standalone `PomodoroEngine` architecture.
+
+            ### What's Included:
             - **AppImage:** Standalone executable for any modern Linux distro (Ubuntu, Fedora, Arch, Debian, Mint, etc.).
             - **DEB Package:** Native installer for Debian, Ubuntu, Linux Mint.
 
-            ### 🚀 How to Run AppImage:
+            ### How to Run AppImage:
             1. Download `Pomodoro_amd64.AppImage` below.
             2. Make it executable:
                ```bash
