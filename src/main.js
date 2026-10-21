@@ -1,10 +1,10 @@
-// Pomodoro Timer Engine with Web Audio & Tauri Desktop Integration
+import { PomodoroEngine } from "./timerEngine.js";
 
-// Circumference of r=130 SVG circle
-const RADIUS = 130;
+const RADIUS = 106;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+const TICK_COUNT = 60;
 
-// Sound synthesizer using Web Audio API (zero external assets needed)
+// Subtle acoustic synthesizer using Web Audio API
 class SoundPlayer {
   constructor() {
     this.ctx = null;
@@ -22,48 +22,56 @@ class SoundPlayer {
     }
   }
 
-  playChime(notes = [523.25, 659.25, 783.99]) {
+  playToneSequence(notes) {
     try {
       this.init();
       if (!this.ctx) return;
-      
-      notes.forEach((freq, idx) => {
+
+      notes.forEach(({ freq, delay, duration = 0.45 }) => {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.12);
-        
-        gain.gain.setValueAtTime(0, this.ctx.currentTime + idx * 0.12);
-        gain.gain.linearRampToValueAtTime(0.18, this.ctx.currentTime + idx * 0.12 + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.12 + 0.8);
-        
+
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime + delay);
+
+        gain.gain.setValueAtTime(0, this.ctx.currentTime + delay);
+        gain.gain.linearRampToValueAtTime(0.14, this.ctx.currentTime + delay + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0008, this.ctx.currentTime + delay + duration);
+
         osc.connect(gain);
         gain.connect(this.ctx.destination);
-        
-        osc.start(this.ctx.currentTime + idx * 0.12);
-        osc.stop(this.ctx.currentTime + idx * 0.12 + 0.85);
+
+        osc.start(this.ctx.currentTime + delay);
+        osc.stop(this.ctx.currentTime + delay + duration + 0.05);
       });
     } catch (e) {
-      console.warn("Audio playback not supported:", e);
+      console.warn("Audio playback unavailable:", e);
     }
   }
 
   playStartSound() {
-    this.playChime([440, 554.37, 659.25]); // A major chime
+    this.playToneSequence([
+      { freq: 587.33, delay: 0, duration: 0.18 },
+      { freq: 880.0, delay: 0.09, duration: 0.28 },
+    ]);
   }
 
   playCompleteSound() {
-    this.playChime([523.25, 659.25, 783.99, 1046.5]); // C major triumphant chime
+    this.playToneSequence([
+      { freq: 523.25, delay: 0, duration: 0.35 },
+      { freq: 659.25, delay: 0.12, duration: 0.35 },
+      { freq: 783.99, delay: 0.24, duration: 0.5 },
+      { freq: 1046.5, delay: 0.38, duration: 0.75 },
+    ]);
   }
 }
 
-// Notification Handler (Tauri plugin fallback to Web Notification)
+// Desktop Notification Handler (Tauri plugin with Web Notification fallback)
 async function sendDesktopNotification(title, body) {
   try {
-    const { isPermissionGranted, requestPermission, sendNotification } = 
+    const { isPermissionGranted, requestPermission, sendNotification } =
       await import("@tauri-apps/plugin-notification");
-    
+
     let permitted = await isPermissionGranted();
     if (!permitted) {
       const permission = await requestPermission();
@@ -74,8 +82,7 @@ async function sendDesktopNotification(title, body) {
       sendNotification({ title, body });
       return;
     }
-  } catch (err) {
-    // If not in Tauri or plugin unavailable, fallback to Web API
+  } catch (_err) {
     if ("Notification" in window) {
       if (Notification.permission === "granted") {
         new Notification(title, { body });
@@ -89,60 +96,96 @@ async function sendDesktopNotification(title, body) {
   }
 }
 
-// State
-const state = {
-  mode: "work", // "work", "shortBreak", "longBreak"
-  timeRemaining: 25 * 60,
-  totalDuration: 25 * 60,
-  isRunning: false,
-  timerId: null,
-  currentCycle: 1,
-  
-  settings: {
-    work: 25,
-    shortBreak: 5,
-    longBreak: 15,
-    longBreakInterval: 4,
-    soundEnabled: true,
-    notifEnabled: true,
-    autoStartBreaks: false,
-  },
+// Persistent preferences & daily stats
+const prefs = {
+  work: 25,
+  shortBreak: 5,
+  longBreak: 15,
+  longBreakInterval: 4,
+  soundEnabled: true,
+  notifEnabled: true,
+  autoStartBreaks: false,
+  theme: "dark",
+  taskNote: "",
 };
 
-// Load saved settings
-function loadSettings() {
+function getTodayKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function loadPreferences() {
   try {
     const saved = localStorage.getItem("pomodoro_settings");
     if (saved) {
-      state.settings = { ...state.settings, ...JSON.parse(saved) };
+      Object.assign(prefs, JSON.parse(saved));
     }
   } catch (e) {
-    console.error("Failed to load settings:", e);
+    console.error("Failed to load preferences:", e);
   }
 }
 
-function saveSettings() {
+function savePreferences() {
   try {
-    localStorage.setItem("pomodoro_settings", JSON.stringify(state.settings));
+    localStorage.setItem("pomodoro_settings", JSON.stringify(prefs));
   } catch (e) {
-    console.error("Failed to save settings:", e);
+    console.error("Failed to save preferences:", e);
   }
 }
 
-// Elements
-const timeDisplay = document.getElementById("timeDisplay");
+function getTodayMinutes() {
+  try {
+    const raw = localStorage.getItem("pomodoro_daily_minutes");
+    if (!raw) return 0;
+    const parsed = JSON.parse(raw);
+    return parsed.date === getTodayKey() ? parsed.minutes || 0 : 0;
+  } catch (_e) {
+    return 0;
+  }
+}
+
+function addTodayMinutes(mins) {
+  const total = getTodayMinutes() + mins;
+  try {
+    localStorage.setItem(
+      "pomodoro_daily_minutes",
+      JSON.stringify({ date: getTodayKey(), minutes: total })
+    );
+  } catch (_e) {
+    // ignore storage errors
+  }
+  return total;
+}
+
+// DOM Elements
+const statusLed = document.getElementById("statusLed");
+const statusLabel = document.getElementById("statusLabel");
+const quickSoundBtn = document.getElementById("quickSoundBtn");
+const soundOnIcon = document.getElementById("soundOnIcon");
+const soundOffIcon = document.getElementById("soundOffIcon");
+const themeBtn = document.getElementById("themeBtn");
+const sunIcon = document.getElementById("sunIcon");
+const moonIcon = document.getElementById("moonIcon");
+
+const dialTicksGroup = document.getElementById("dialTicks");
 const progressCircle = document.getElementById("progressCircle");
+const timeDisplay = document.getElementById("timeDisplay");
 const modeBadge = document.getElementById("modeBadge");
+const taskInput = document.getElementById("taskInput");
+
 const cycleText = document.getElementById("cycleText");
+const todayStat = document.getElementById("todayStat");
 const cycleDots = document.getElementById("cycleDots");
+
 const startBtn = document.getElementById("startBtn");
+const startBtnText = document.getElementById("startBtnText");
 const playIcon = document.getElementById("playIcon");
 const pauseIcon = document.getElementById("pauseIcon");
 const resetBtn = document.getElementById("resetBtn");
 const skipBtn = document.getElementById("skipBtn");
-const modeTabs = document.querySelectorAll(".mode-tab");
+const modeSegments = document.querySelectorAll(".segment");
 
-// Settings Elements
+// Preferences Sheet Elements
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsModal = document.getElementById("settingsModal");
 const closeSettingsBtn = document.getElementById("closeSettingsBtn");
@@ -156,197 +199,254 @@ const notifToggle = document.getElementById("notifToggle");
 const autoStartBreaksToggle = document.getElementById("autoStartBreaks");
 
 const soundPlayer = new SoundPlayer();
+const tickElements = [];
 
-// Initialize Ring
+// Build 60 radial chronometer ticks in SVG
+function buildDialTicks() {
+  const cx = 130;
+  const cy = 130;
+  const outerRadius = 123;
+
+  dialTicksGroup.innerHTML = "";
+  tickElements.length = 0;
+
+  for (let i = 0; i < TICK_COUNT; i++) {
+    const isMajor = i % 5 === 0;
+    const innerRadius = isMajor ? 114 : 117.5;
+    const angleRad = (i * 6 * Math.PI) / 180;
+
+    const x1 = cx + innerRadius * Math.cos(angleRad);
+    const y1 = cy + innerRadius * Math.sin(angleRad);
+    const x2 = cx + outerRadius * Math.cos(angleRad);
+    const y2 = cy + outerRadius * Math.sin(angleRad);
+
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", x1.toFixed(2));
+    line.setAttribute("y1", y1.toFixed(2));
+    line.setAttribute("x2", x2.toFixed(2));
+    line.setAttribute("y2", y2.toFixed(2));
+    line.setAttribute("stroke-width", isMajor ? "1.8" : "1.1");
+    if (isMajor) line.classList.add("major");
+
+    dialTicksGroup.appendChild(line);
+    tickElements.push(line);
+  }
+}
+
 progressCircle.style.strokeDasharray = `${CIRCUMFERENCE} ${CIRCUMFERENCE}`;
 progressCircle.style.strokeDashoffset = "0";
 
-function updateDisplay() {
-  const minutes = Math.floor(state.timeRemaining / 60);
-  const seconds = state.timeRemaining % 60;
-  const formatted = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-  
-  timeDisplay.textContent = formatted;
-  
-  // Progress Ring
-  const progressRatio = state.timeRemaining / state.totalDuration;
-  const offset = CIRCUMFERENCE * (1 - progressRatio);
-  progressCircle.style.strokeDashoffset = String(offset);
-
-  // Window title
-  const modeTitle = state.mode === "work" ? "Focus" : state.mode === "shortBreak" ? "Short Break" : "Long Break";
-  document.title = `${formatted} - ${modeTitle} | Pomodoro`;
+function applyTheme(theme) {
+  prefs.theme = theme === "light" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", prefs.theme);
+  sunIcon.classList.toggle("hidden", prefs.theme === "light");
+  moonIcon.classList.toggle("hidden", prefs.theme === "dark");
 }
 
-function updateTheme() {
-  const root = document.documentElement;
-  if (state.mode === "work") {
-    root.style.setProperty("--current-accent", "var(--accent-work)");
-    root.style.setProperty("--current-glow", "var(--accent-work-glow)");
-    modeBadge.textContent = "Focus Time";
-  } else if (state.mode === "shortBreak") {
-    root.style.setProperty("--current-accent", "var(--accent-short)");
-    root.style.setProperty("--current-glow", "var(--accent-short-glow)");
-    modeBadge.textContent = "Short Break";
+function updateSoundIcon() {
+  soundOnIcon.classList.toggle("hidden", !prefs.soundEnabled);
+  soundOffIcon.classList.toggle("hidden", prefs.soundEnabled);
+}
+
+function updateTodayStatUI() {
+  const mins = getTodayMinutes();
+  if (mins >= 60) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    todayStat.textContent = `TODAY ${h}H ${m}M`;
   } else {
-    root.style.setProperty("--current-accent", "var(--accent-long)");
-    root.style.setProperty("--current-glow", "var(--accent-long-glow)");
-    modeBadge.textContent = "Long Break";
+    todayStat.textContent = `TODAY ${mins}M`;
   }
-
-  modeTabs.forEach((tab) => {
-    tab.classList.toggle("active", tab.dataset.mode === state.mode);
-  });
 }
 
-function updateCycleUI() {
-  const max = state.settings.longBreakInterval;
-  cycleText.textContent = `Cycle ${state.currentCycle} of ${max}`;
+function renderTickProgress(progressRatio) {
+  const activeCount = Math.ceil(progressRatio * TICK_COUNT);
+  for (let i = 0; i < TICK_COUNT; i++) {
+    tickElements[i].classList.toggle("active-tick", i < activeCount);
+  }
+}
+
+function renderCycleBars(currentCycle, maxCycles) {
+  const curStr = String(currentCycle).padStart(2, "0");
+  const maxStr = String(maxCycles).padStart(2, "0");
+  cycleText.textContent = `SESSION ${curStr} / ${maxStr}`;
 
   cycleDots.innerHTML = "";
-  for (let i = 1; i <= max; i++) {
-    const dot = document.createElement("span");
-    dot.className = "dot";
-    if (i <= state.currentCycle) {
-      dot.classList.add("active");
+  for (let i = 1; i <= maxCycles; i++) {
+    const seg = document.createElement("div");
+    seg.className = "seg-pill";
+    if (i < currentCycle) {
+      seg.classList.add("completed");
+    } else if (i === currentCycle) {
+      seg.classList.add("current");
     }
-    cycleDots.appendChild(dot);
+    cycleDots.appendChild(seg);
   }
 }
 
-function setMode(mode, autoStart = false) {
-  state.mode = mode;
-  pauseTimer();
+function renderTick(snapshot) {
+  const minutes = Math.floor(snapshot.timeRemaining / 60);
+  const seconds = snapshot.timeRemaining % 60;
+  const formatted = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 
-  let minutes = state.settings.work;
-  if (mode === "shortBreak") minutes = state.settings.shortBreak;
-  if (mode === "longBreak") minutes = state.settings.longBreak;
+  timeDisplay.textContent = formatted;
 
-  state.totalDuration = minutes * 60;
-  state.timeRemaining = state.totalDuration;
+  const offset = CIRCUMFERENCE * (1 - snapshot.progressRatio);
+  progressCircle.style.strokeDashoffset = String(offset);
+  renderTickProgress(snapshot.progressRatio);
 
-  updateTheme();
-  updateDisplay();
-
-  if (autoStart) {
-    startTimer();
-  }
+  const modeTitle =
+    snapshot.mode === "work"
+      ? "Focus"
+      : snapshot.mode === "shortBreak"
+      ? "Short Break"
+      : "Long Break";
+  document.title = `${formatted} · ${modeTitle}`;
 }
 
-function startTimer() {
-  if (state.isRunning) return;
-
-  state.isRunning = true;
-  playIcon.classList.add("hidden");
-  pauseIcon.classList.remove("hidden");
-
-  if (state.settings.soundEnabled) {
-    soundPlayer.playStartSound();
-  }
-
-  state.timerId = window.setInterval(() => {
-    if (state.timeRemaining > 0) {
-      state.timeRemaining--;
-      updateDisplay();
-    } else {
-      handleTimerComplete();
-    }
-  }, 1000);
-}
-
-function pauseTimer() {
-  if (!state.isRunning) return;
-
-  state.isRunning = false;
-  playIcon.classList.remove("hidden");
-  pauseIcon.classList.add("hidden");
-
-  if (state.timerId) {
-    clearInterval(state.timerId);
-    state.timerId = null;
-  }
-}
-
-function resetTimer() {
-  pauseTimer();
-  state.timeRemaining = state.totalDuration;
-  updateDisplay();
-}
-
-function handleTimerComplete() {
-  pauseTimer();
-
-  if (state.settings.soundEnabled) {
-    soundPlayer.playCompleteSound();
-  }
-
-  if (state.mode === "work") {
-    if (state.settings.notifEnabled) {
-      sendDesktopNotification("Work Session Finished! 🍅", "Take a well-deserved break!");
-    }
-
-    if (state.currentCycle >= state.settings.longBreakInterval) {
-      state.currentCycle = 1;
-      setMode("longBreak", state.settings.autoStartBreaks);
-    } else {
-      state.currentCycle++;
-      setMode("shortBreak", state.settings.autoStartBreaks);
-    }
-    updateCycleUI();
+function renderState(snapshot) {
+  const root = document.documentElement;
+  if (snapshot.mode === "work") {
+    root.style.setProperty("--current-accent", "var(--accent-work)");
+    modeBadge.textContent = "FOCUS SESSION";
+  } else if (snapshot.mode === "shortBreak") {
+    root.style.setProperty("--current-accent", "var(--accent-short)");
+    modeBadge.textContent = "SHORT BREAK";
   } else {
-    // Break finished
-    if (state.settings.notifEnabled) {
-      sendDesktopNotification("Break Finished! ⚡", "Ready to focus again?");
-    }
-    setMode("work", false);
+    root.style.setProperty("--current-accent", "var(--accent-long)");
+    modeBadge.textContent = "LONG BREAK";
   }
+
+  modeSegments.forEach((seg) => {
+    seg.classList.toggle("active", seg.dataset.mode === snapshot.mode);
+  });
+
+  // Update status indicator & primary button
+  statusLed.classList.toggle("running", snapshot.isRunning);
+  if (snapshot.isRunning) {
+    statusLabel.textContent = snapshot.mode === "work" ? "FOCUSING" : "ON BREAK";
+    playIcon.classList.add("hidden");
+    pauseIcon.classList.remove("hidden");
+    startBtnText.textContent = "PAUSE";
+  } else {
+    const isAtStart = snapshot.timeRemaining === snapshot.totalDuration;
+    statusLabel.textContent = isAtStart ? "STANDBY" : "PAUSED";
+    playIcon.classList.remove("hidden");
+    pauseIcon.classList.add("hidden");
+    startBtnText.textContent = isAtStart ? "START" : "RESUME";
+  }
+
+  renderCycleBars(snapshot.currentCycle, snapshot.longBreakInterval);
 }
 
-function skipTimer() {
-  if (confirm("Skip current session?")) {
-    if (state.mode === "work") {
-      if (state.currentCycle >= state.settings.longBreakInterval) {
-        state.currentCycle = 1;
-        setMode("longBreak", false);
-      } else {
-        state.currentCycle++;
-        setMode("shortBreak", false);
-      }
-      updateCycleUI();
-    } else {
-      setMode("work", false);
+// Initialize Preferences & Engine
+loadPreferences();
+buildDialTicks();
+applyTheme(prefs.theme);
+updateSoundIcon();
+updateTodayStatUI();
+taskInput.value = prefs.taskNote || "";
+
+const engine = new PomodoroEngine({
+  settings: {
+    work: prefs.work,
+    shortBreak: prefs.shortBreak,
+    longBreak: prefs.longBreak,
+    longBreakInterval: prefs.longBreakInterval,
+    autoStartBreaks: prefs.autoStartBreaks,
+  },
+  onTick: renderTick,
+  onStateChange: renderState,
+  onPhaseComplete: ({ finishedMode, finishedMinutes }) => {
+    if (prefs.soundEnabled) {
+      soundPlayer.playCompleteSound();
     }
-  }
-}
+
+    if (finishedMode === "work") {
+      addTodayMinutes(finishedMinutes);
+      updateTodayStatUI();
+      if (prefs.notifEnabled) {
+        const note = prefs.taskNote ? ` (${prefs.taskNote})` : "";
+        sendDesktopNotification(
+          `Focus session complete${note}`,
+          "Time to step back and take a break."
+        );
+      }
+    } else if (prefs.notifEnabled) {
+      sendDesktopNotification(
+        "Break finished",
+        "Ready to begin the next focus session."
+      );
+    }
+  },
+});
+
+// Initial render
+engine.setMode("work", false);
 
 // Event Listeners
 startBtn.addEventListener("click", () => {
-  if (state.isRunning) {
-    pauseTimer();
-  } else {
-    startTimer();
+  const wasRunning = engine.isRunning;
+  engine.toggle();
+  if (!wasRunning && engine.isRunning && prefs.soundEnabled) {
+    soundPlayer.playStartSound();
   }
 });
 
-resetBtn.addEventListener("click", resetTimer);
-skipBtn.addEventListener("click", skipTimer);
+resetBtn.addEventListener("click", () => {
+  engine.reset();
+  renderState(engine.getSnapshot());
+});
 
-modeTabs.forEach((tab) => {
-  tab.addEventListener("click", () => {
-    setMode(tab.dataset.mode, false);
+skipBtn.addEventListener("click", () => {
+  engine.skip();
+});
+
+modeSegments.forEach((seg) => {
+  seg.addEventListener("click", () => {
+    engine.setMode(seg.dataset.mode, false);
   });
 });
 
-// Settings Modal
+taskInput.addEventListener("input", () => {
+  prefs.taskNote = taskInput.value.trim();
+  savePreferences();
+});
+
+quickSoundBtn.addEventListener("click", () => {
+  prefs.soundEnabled = !prefs.soundEnabled;
+  soundToggle.checked = prefs.soundEnabled;
+  updateSoundIcon();
+  savePreferences();
+});
+
+themeBtn.addEventListener("click", () => {
+  applyTheme(prefs.theme === "dark" ? "light" : "dark");
+  savePreferences();
+});
+
+// Stepper buttons inside Preferences sheet
+document.querySelectorAll(".step-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const input = document.getElementById(btn.dataset.target);
+    if (!input) return;
+    const step = parseInt(btn.dataset.step, 10) || 1;
+    const min = parseInt(input.min, 10) || 1;
+    const max = parseInt(input.max, 10) || 120;
+    const current = parseInt(input.value, 10) || min;
+    input.value = String(Math.min(max, Math.max(min, current + step)));
+  });
+});
+
+// Open / Close Preferences
 settingsBtn.addEventListener("click", () => {
-  workInput.value = state.settings.work;
-  shortBreakInput.value = state.settings.shortBreak;
-  longBreakInput.value = state.settings.longBreak;
-  longBreakIntervalInput.value = state.settings.longBreakInterval;
-  soundToggle.checked = state.settings.soundEnabled;
-  notifToggle.checked = state.settings.notifEnabled;
-  autoStartBreaksToggle.checked = state.settings.autoStartBreaks;
-  
+  workInput.value = prefs.work;
+  shortBreakInput.value = prefs.shortBreak;
+  longBreakInput.value = prefs.longBreak;
+  longBreakIntervalInput.value = prefs.longBreakInterval;
+  soundToggle.checked = prefs.soundEnabled;
+  notifToggle.checked = prefs.notifEnabled;
+  autoStartBreaksToggle.checked = prefs.autoStartBreaks;
   settingsModal.classList.remove("hidden");
 });
 
@@ -361,23 +461,53 @@ settingsModal.addEventListener("click", (e) => {
 });
 
 saveSettingsBtn.addEventListener("click", () => {
-  state.settings.work = Math.max(1, parseInt(workInput.value) || 25);
-  state.settings.shortBreak = Math.max(1, parseInt(shortBreakInput.value) || 5);
-  state.settings.longBreak = Math.max(1, parseInt(longBreakInput.value) || 15);
-  state.settings.longBreakInterval = Math.max(1, parseInt(longBreakIntervalInput.value) || 4);
-  state.settings.soundEnabled = soundToggle.checked;
-  state.settings.notifEnabled = notifToggle.checked;
-  state.settings.autoStartBreaks = autoStartBreaksToggle.checked;
+  prefs.work = Math.min(120, Math.max(1, parseInt(workInput.value, 10) || 25));
+  prefs.shortBreak = Math.min(60, Math.max(1, parseInt(shortBreakInput.value, 10) || 5));
+  prefs.longBreak = Math.min(90, Math.max(1, parseInt(longBreakInput.value, 10) || 15));
+  prefs.longBreakInterval = Math.min(12, Math.max(1, parseInt(longBreakIntervalInput.value, 10) || 4));
+  prefs.soundEnabled = soundToggle.checked;
+  prefs.notifEnabled = notifToggle.checked;
+  prefs.autoStartBreaks = autoStartBreaksToggle.checked;
 
-  saveSettings();
+  updateSoundIcon();
+  savePreferences();
+  engine.updateSettings({
+    work: prefs.work,
+    shortBreak: prefs.shortBreak,
+    longBreak: prefs.longBreak,
+    longBreakInterval: prefs.longBreakInterval,
+    autoStartBreaks: prefs.autoStartBreaks,
+  });
   settingsModal.classList.add("hidden");
-  
-  setMode(state.mode, false);
-  updateCycleUI();
 });
 
-// App Initialization
-loadSettings();
-setMode("work", false);
-updateCycleUI();
-updateDisplay();
+// Keyboard shortcuts (ignored when typing in inputs)
+window.addEventListener("keydown", (e) => {
+  const tag = document.activeElement?.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA") {
+    if (e.key === "Escape") {
+      document.activeElement.blur();
+    }
+    return;
+  }
+
+  if (e.key === "Escape" && !settingsModal.classList.contains("hidden")) {
+    settingsModal.classList.add("hidden");
+    return;
+  }
+
+  if (!settingsModal.classList.contains("hidden")) return;
+
+  if (e.code === "Space") {
+    e.preventDefault();
+    startBtn.click();
+  } else if (e.key === "r" || e.key === "R") {
+    resetBtn.click();
+  } else if (e.key === "s" || e.key === "S") {
+    skipBtn.click();
+  } else if (e.key === "m" || e.key === "M") {
+    quickSoundBtn.click();
+  } else if (e.key === "t" || e.key === "T") {
+    themeBtn.click();
+  }
+});
