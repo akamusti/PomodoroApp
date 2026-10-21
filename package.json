@@ -1,0 +1,32 @@
+{
+  "name": "pomodoroapp",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Bu, Python ile geliştirilmiş basit ve etkili bir komut satırı (CLI) tabanlı Pomodoro Zamanlayıcı uygulamasıdır. Odaklanma ve mola döngülerini yöneterek verimliliğinizi artırmanıza yardımcı olmak için tasarlanmıştır. Minimalist bir arayüze sahiptir ve terminalde çalışır.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "tauri": "tauri"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/akamusti/PomodoroApp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/akamusti/PomodoroApp/issues"
+  },
+  "homepage": "https://github.com/akamusti/PomodoroApp#readme",
+  "devDependencies": {
+    "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/cli": "^2.12.4",
+    "esbuild": "^0.28.2",
+    "vite": "^8.3.5"
+  },
+  "dependencies": {
+    "@tauri-apps/plugin-notification": "^2.7.0"
+  }
+}

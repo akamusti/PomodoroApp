@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Pomodoro
+Comment=A sleek, distraction-free Pomodoro timer for Linux
+Exec=pomodoro-app
+Icon=pomodoro
+Terminal=false
+Type=Application
+Categories=Utility;Clock;Productivity;
+StartupNotify=true
+Keywords=pomodoro;timer;productivity;focus;clock;
