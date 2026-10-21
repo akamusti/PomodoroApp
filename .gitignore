@@ -1,0 +1,37 @@
+# Environment & Secret files
+.env
+.env.*
+!.env.example
+
+# Compiled binaries & artifacts
+pomodoro-bin
+*.o
+*.out
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.venv
+venv/
+ENV/
+env/
+
+# Node / Electron / Web
+node_modules/
+dist/
+dist-electron/
+.next/
+out/
+
+# Rust / Tauri
+target/
+src-tauri/target/
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
