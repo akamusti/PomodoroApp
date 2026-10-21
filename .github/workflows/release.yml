@@ -1,0 +1,60 @@
+name: Release Linux AppImage & Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build Tauri Desktop Application & Release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: 'Pomodoro App v__VERSION__'
+          releaseBody: |
+            ## 🍅 Pomodoro Linux Desktop Release v__VERSION__
+
+            ### ✨ What's Included:
+            - **AppImage:** Standalone executable for any modern Linux distro (Ubuntu, Fedora, Arch, Debian, Mint, etc.).
+            - **DEB Package:** Native installer for Debian, Ubuntu, Linux Mint.
+
+            ### 🚀 How to Run AppImage:
+            1. Download `Pomodoro_amd64.AppImage` below.
+            2. Make it executable:
+               ```bash
+               chmod +x Pomodoro_amd64.AppImage
+               ```
+            3. Double-click or run from terminal:
+               ```bash
+               ./Pomodoro_amd64.AppImage
+               ```
+          releaseDraft: false
+          prerelease: false
