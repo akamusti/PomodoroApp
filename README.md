@@ -1,61 +1,136 @@
-# 🍅 PomodoroApp (Linux Desktop & CLI)
+# 🍅 PomodoroApp
 
-A sleek, modern, distraction-free Pomodoro timer built for Linux with **Tauri v2 (Rust)** and modern web technologies. Also includes lightweight terminal/CLI versions.
+[![GitHub Release](https://img.shields.io/github/v/release/akamusti/PomodoroApp?color=brightgreen&label=Release)](https://github.com/akamusti/PomodoroApp/releases/latest)
+[![Platform](https://img.shields.io/badge/Platform-Linux-orange?logo=linux&logoColor=white)](https://github.com/akamusti/PomodoroApp)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
----
+A sleek, modern, distraction-free Pomodoro timer built specifically for **Linux** using **Tauri v2 (Rust)** and modern web technologies. Designed for zero-distraction focus, native desktop integration, and ultra-low system resource consumption (~15-20 MB RAM).
 
-## ✨ Features (Desktop App)
-
-- **Minimalist & Distraction-free Dark UI:** Designed with smooth circular SVG progress countdowns and mode badges.
-- **Ultra-lightweight Resource Usage:** Powered by Tauri v2 and Rust (~15-20 MB RAM footprint).
-- **System Tray Integration:** Runs discreetly in your KDE Plasma / GNOME tray bar with quick show/hide/quit controls. Minimize-to-tray keeps your workflow clean.
-- **Native Linux Desktop Notifications:** Freedesktop / libnotify integration alerts you when focus sessions and breaks conclude.
-- **Synthesized Audio Cues:** Harmonious chime alerts for session transitions built with Web Audio API (no missing codec/file errors).
-- **Customizable Sessions:** Easily tweak Focus time, Short Break, Long Break, intervals, sound, and auto-start preferences.
-- **Terminal (CLI) Versions:** Legacy Python, Bash, and C implementations preserved in the `cli/` directory.
+Lightweight terminal (CLI) implementations (Python, Bash, C) are also preserved for CLI enthusiasts.
 
 ---
 
-## 🚀 Running the Desktop App
+## 📥 Download & Quick Start
 
-### Prerequisites (Fedora Linux)
+Ready-to-use binaries are automatically built and released on GitHub for 64-bit Linux (`x86_64` / `amd64`).
+
+👉 **[Download the latest release here](https://github.com/akamusti/PomodoroApp/releases/latest)**
+
+### 📦 Option 1: AppImage (Universal Linux - Recommended)
+Compatible with almost all modern distributions (Fedora, Ubuntu, Arch Linux, Debian, openSUSE, Linux Mint, Manjaro, etc.).
+
+1. Download `Pomodoro_*_amd64.AppImage` from the [Releases](https://github.com/akamusti/PomodoroApp/releases/latest) page.
+2. Grant execution permission:
+   ```bash
+   chmod +x Pomodoro_*_amd64.AppImage
+   ```
+3. Run the application:
+   ```bash
+   ./Pomodoro_*_amd64.AppImage
+   ```
+
+> [!TIP]
+> If you use Ubuntu 22.04+ or a system without FUSE 2, install `libfuse2` if needed:
+> - **Ubuntu / Debian:** `sudo apt install libfuse2`
+> - **Fedora:** `sudo dnf install fuse-libs`
+
+---
+
+### 📦 Option 2: DEB Package (Debian / Ubuntu / Mint)
+
+1. Download the `.deb` package from the [Releases](https://github.com/akamusti/PomodoroApp/releases/latest) page.
+2. Install via terminal:
+   ```bash
+   sudo dpkg -i pomodoro_*_amd64.deb
+   ```
+   Or open with your distribution's Software Center / GDebi.
+
+---
+
+## ✨ Features
+
+- **Minimalist & Distraction-free Dark UI:** Clean circular countdown animation with dynamic mode indicators (Focus, Short Break, Long Break).
+- **System Tray Integration:** Runs discreetly in your desktop tray (KDE Plasma, GNOME via AppIndicator, XFCE). Minimize to tray on close to maintain your workflow without cluttering the taskbar.
+- **Native Freedesktop Notifications:** Sends system notifications (`libnotify`) when focus or break sessions complete.
+- **Harmonious Audio Cues:** Synthesized chime alerts powered by Web Audio API — works out-of-the-box with zero missing external audio codecs or file dependencies.
+- **Customizable Preferences:**
+  - Adjustable Focus, Short Break, and Long Break durations
+  - Long Break interval cycles (e.g. every 4 pomodoros)
+  - Auto-start breaks and auto-start focus sessions toggles
+  - Sound effect mute/unmute toggle
+- **Ultra-Lightweight & Fast:** Built on Rust and Tauri v2, using minimal CPU cycles and only ~15–20 MB of RAM.
+
+---
+
+## 🛠️ Building From Source
+
+If you prefer to compile from source or contribute to development:
+
+### 1. Prerequisites
+
+#### Fedora Linux:
 ```bash
-sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel
+sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel patchelf
 ```
 
-### Development Mode
+#### Debian / Ubuntu / Linux Mint:
 ```bash
-# Install frontend dependencies
+sudo apt update
+sudo apt install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+```
+
+#### Arch Linux:
+```bash
+sudo pacman -S webkit2gtk-4.1 libappindicator-gtk3 librsvg patchelf
+```
+
+Ensure you have **Node.js 18+** and **Rust stable** (`rustup`) installed.
+
+### 2. Development Mode
+
+```bash
+# Clone the repository
+git clone https://github.com/akamusti/PomodoroApp.git
+cd PomodoroApp
+
+# Install dependencies
 npm install
 
-# Run in development mode
+# Start in development mode (hot-reload enabled)
 npm run tauri dev
 ```
 
-### Production Build
+### 3. Production Build
+
+To produce standalone AppImage and DEB bundles locally:
+
 ```bash
 npm run tauri build
 ```
-The compiled standalone binary and installer packages will be available in `src-tauri/target/release/bundle/`.
+
+The resulting packages will be generated under:
+`src-tauri/target/release/bundle/appimage/` and `src-tauri/target/release/bundle/deb/`
 
 ---
 
 ## 💻 Terminal / CLI Versions (Legacy)
 
-If you prefer terminal-only timers:
+For minimalist terminal users, standalone command-line scripts are available in the [`cli/`](cli/) directory:
 
 ```bash
 # Python CLI
 python3 cli/pomodoro.py
 
-# Bash CLI
+# Bash CLI (zero dependencies)
 bash cli/pomodoro.sh
 
-# C CLI
-gcc -O2 -o pomodoro-bin cli/pomodoro.c && ./pomodoro-bin
+# C CLI (high performance)
+gcc -O2 -o pomodoro-bin cli/pomodoro.c
+./pomodoro-bin
 ```
 
 ---
 
-## 📜 License
+## 📄 License
+
 This project is licensed under the [GNU General Public License v3.0](LICENSE).
