@@ -1,5 +1,6 @@
 import { PomodoroEngine } from "./timerEngine.js";
 import { AmbientSoundEngine } from "./ambientEngine.js";
+import { invoke } from "@tauri-apps/api/core";
 
 const RADIUS = 106;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
@@ -17,75 +18,22 @@ const TRACK_ICONS = {
   "waves-deep": `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0M2 17c2-4 4-4 6 0s4 4 6 0 4-4 6 0"></path></svg>`,
 };
 
-let globalAudioCtx = null;
-function getSharedAudioContext() {
-  try {
-    if (!globalAudioCtx) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) {
-        globalAudioCtx = new AudioCtx();
-      }
-    }
-    if (globalAudioCtx && globalAudioCtx.state === "suspended") {
-      globalAudioCtx.resume();
-    }
-  } catch (e) {
-    console.warn("AudioContext error:", e);
-  }
-  return globalAudioCtx;
-}
-
-// Subtle acoustic synthesizer using Web Audio API
+// Native acoustic cue player routed through the Tauri Rust audio backend
 class SoundPlayer {
-  constructor() {
-    this.ctx = null;
-  }
-
-  init() {
-    this.ctx = getSharedAudioContext();
-  }
-
-  playToneSequence(notes) {
-    try {
-      this.init();
-      if (!this.ctx) return;
-
-      notes.forEach(({ freq, delay, duration = 0.45 }) => {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-
-        osc.type = "triangle";
-        osc.frequency.setValueAtTime(freq, this.ctx.currentTime + delay);
-
-        gain.gain.setValueAtTime(0, this.ctx.currentTime + delay);
-        gain.gain.linearRampToValueAtTime(0.14, this.ctx.currentTime + delay + 0.015);
-        gain.gain.exponentialRampToValueAtTime(0.0008, this.ctx.currentTime + delay + duration);
-
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-
-        osc.start(this.ctx.currentTime + delay);
-        osc.stop(this.ctx.currentTime + delay + duration + 0.05);
+  playCue(kind) {
+    if (typeof window !== "undefined" && window.__TAURI_INTERNALS__) {
+      invoke("play_cue", { kind }).catch((e) => {
+        console.warn("Native cue playback warning:", e);
       });
-    } catch (e) {
-      console.warn("Audio playback unavailable:", e);
     }
   }
 
   playStartSound() {
-    this.playToneSequence([
-      { freq: 587.33, delay: 0, duration: 0.18 },
-      { freq: 880.0, delay: 0.09, duration: 0.28 },
-    ]);
+    this.playCue("start");
   }
 
   playCompleteSound() {
-    this.playToneSequence([
-      { freq: 523.25, delay: 0, duration: 0.35 },
-      { freq: 659.25, delay: 0.12, duration: 0.35 },
-      { freq: 783.99, delay: 0.24, duration: 0.5 },
-      { freq: 1046.5, delay: 0.38, duration: 0.75 },
-    ]);
+    this.playCue("complete");
   }
 }
 
@@ -672,22 +620,6 @@ presetPills.forEach((pill) => {
     updateAmbientActiveState();
   });
 });
-
-// On first user interaction: warm up the cue-tone AudioContext (non-blocking)
-// and resume previously enabled ambient tracks (autoplay needs a user gesture).
-let audioUnlocked = false;
-const unlockAudioOnInteraction = () => {
-  if (audioUnlocked) return;
-  audioUnlocked = true;
-  window.removeEventListener("pointerdown", unlockAudioOnInteraction);
-  window.removeEventListener("keydown", unlockAudioOnInteraction);
-  getSharedAudioContext();
-  if (!ambientEngine.settings.syncWithFocus) {
-    ambientEngine.resumeAllEnabled();
-  }
-};
-window.addEventListener("pointerdown", unlockAudioOnInteraction);
-window.addEventListener("keydown", unlockAudioOnInteraction);
 
 // Keyboard shortcuts (ignored when typing in inputs)
 window.addEventListener("keydown", (e) => {

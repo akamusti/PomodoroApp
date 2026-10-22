@@ -1,8 +1,25 @@
+pub mod audio;
+
+use std::collections::HashMap;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager,
 };
+
+#[tauri::command]
+fn set_ambient_state(
+    tracks: HashMap<String, audio::TrackConfig>,
+    master_volume: f32,
+    muted: bool,
+) {
+    audio::get_engine().update_ambient(tracks, master_volume, muted);
+}
+
+#[tauri::command]
+fn play_cue(kind: String) {
+    audio::get_engine().trigger_cue(&kind);
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -16,8 +33,12 @@ pub fn run() {
         }
     }
 
+    // Warm up the native audio mixer thread in the background
+    let _ = audio::get_engine();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
+        .invoke_handler(tauri::generate_handler![set_ambient_state, play_cue])
         .setup(|app| {
             if cfg!(debug_assertions) {
                 let _ = app.handle().plugin(
