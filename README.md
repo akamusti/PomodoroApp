@@ -47,8 +47,17 @@ Compatible with almost all modern distributions (Fedora, Ubuntu, Arch Linux, Deb
 
 ---
 
+### 🪟 Option 3: Windows Executable (.exe)
+
+1. Download `Pomodoro_*_x64-setup.exe` from the [Releases](https://github.com/akamusti/PomodoroApp/releases/latest) page.
+2. Run the installer to enjoy PomodoroApp on Windows.
+
+---
+
 ## ✨ Features
 
+- **Ambient Sounds (Blanket Mode):** Built-in procedural ambient noise mixer powered by Web Audio API. Play and mix soothing nature sounds (Rain, Storm & Thunder, Wind, Ocean Waves, Fireplace, Forest Birds, Coffee Shop, White & Deep Brown Noise) with individual volume sliders and quick presets (`B` shortcut). Zero CPU, zero external audio dependencies.
+- **Focus Session Sync:** Optional auto-sync to play ambient sounds only during active work periods and auto-pause during breaks.
 - **Minimalist & Distraction-free Dark UI:** Clean circular countdown animation with dynamic mode indicators (Focus, Short Break, Long Break).
 - **System Tray Integration:** Runs discreetly in your desktop tray (KDE Plasma, GNOME via AppIndicator, XFCE). Minimize to tray on close to maintain your workflow without cluttering the taskbar.
 - **Native Freedesktop Notifications:** Sends system notifications (`libnotify`) when focus or break sessions complete.

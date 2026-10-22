@@ -28,6 +28,13 @@
             </svg>
           </button>
 
+          <button id="ambientBtn" class="tool-btn" title="Ambient Sounds (Blanket) [B]" aria-label="Ambient Sounds">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 11v2"></path>
+            </svg>
+            <span id="ambientActiveDot" class="ambient-active-indicator hidden"></span>
+          </button>
+
           <button id="themeBtn" class="tool-btn" title="Switch Theme (T)" aria-label="Switch Theme">
             <svg id="sunIcon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="4"></circle>
@@ -210,6 +217,71 @@
 
           <div class="sheet-footer">
             <button id="saveSettingsBtn" class="btn-apply">Apply Changes</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ambient Sounds Sheet (Blanket Mode) -->
+      <div id="ambientModal" class="sheet-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="ambientSheetTitle">
+        <div class="sheet-panel ambient-panel">
+          <div class="sheet-header">
+            <div class="ambient-header-title">
+              <h3 id="ambientSheetTitle">Ambient Sounds</h3>
+              <span class="ambient-pill-badge">BLANKET</span>
+            </div>
+            <div class="ambient-header-actions">
+              <button id="ambientMasterMuteBtn" class="ambient-icon-btn" title="Mute/Unmute All" aria-label="Toggle Mute">
+                <svg id="ambientMuteOffIcon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                </svg>
+                <svg id="ambientMuteOnIcon" class="hidden" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                  <line x1="23" y1="9" x2="17" y2="15"></line>
+                  <line x1="17" y1="9" x2="23" y2="15"></line>
+                </svg>
+              </button>
+              <button id="closeAmbientBtn" class="sheet-close" aria-label="Close">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="sheet-body ambient-sheet-body">
+            <!-- Master Control & Focus Sync -->
+            <div class="ambient-card ambient-master-card">
+              <div class="ambient-slider-head">
+                <span class="ambient-card-label">Master Volume</span>
+                <span id="ambientMasterVolVal" class="ambient-vol-readout">70%</span>
+              </div>
+              <input type="range" id="ambientMasterSlider" min="0" max="100" value="70" class="ambient-range master-range" />
+
+              <label class="switch-row compact-switch" for="ambientSyncToggle">
+                <span class="switch-text-group">
+                  <span class="switch-text-main">Sync with Focus Session</span>
+                  <span class="switch-text-sub">Plays only when timer is running; pauses on breaks</span>
+                </span>
+                <input type="checkbox" id="ambientSyncToggle" class="sr-only" />
+                <span class="switch-ui"></span>
+              </label>
+            </div>
+
+            <!-- Quick Presets -->
+            <div class="section-caption">QUICK PRESETS</div>
+            <div class="ambient-presets">
+              <button class="preset-pill" data-preset="rainy-night">🌧️ Rainy Night</button>
+              <button class="preset-pill" data-preset="cozy-fireplace">🔥 Cozy Fire</button>
+              <button class="preset-pill" data-preset="deep-focus">🎧 Deep Focus</button>
+              <button class="preset-pill" data-preset="peaceful-nature">🌲 Nature</button>
+              <button class="preset-pill reset" data-preset="clear-all">Mute All</button>
+            </div>
+
+            <!-- Sound Mixer List -->
+            <div class="section-caption">SOUND MIXER</div>
+            <div class="ambient-tracks-list" id="ambientTracksContainer"></div>
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 {
   "name": "pomodoroapp",
   "type": "module",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A sleek, distraction-free Pomodoro timer built for Linux with Tauri v2 (Rust) and web technologies.",
   "main": "index.js",
   "scripts": {

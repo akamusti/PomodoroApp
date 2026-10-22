@@ -1,8 +1,21 @@
 import { PomodoroEngine } from "./timerEngine.js";
+import { AmbientSoundEngine } from "./ambientEngine.js";
 
 const RADIUS = 106;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 const TICK_COUNT = 60;
+
+const TRACK_ICONS = {
+  rain: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"></path><path d="M8 19v2M12 18v3M16 19v2"></path></svg>`,
+  storm: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 9"></path><polyline points="13 11 9 17 15 17 11 23"></polyline></svg>`,
+  wind: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"></path></svg>`,
+  waves: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path></svg>`,
+  fire: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>`,
+  birds: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h.01M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 14.6V18h1.4zM16 11l-3-3"></path></svg>`,
+  cafe: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"></path></svg>`,
+  noise: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h2M6 8v8M10 4v16M14 7v10M18 10v4M22 12h-2"></path></svg>`,
+  "waves-deep": `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0M2 17c2-4 4-4 6 0s4 4 6 0 4-4 6 0"></path></svg>`,
+};
 
 // Subtle acoustic synthesizer using Web Audio API
 class SoundPlayer {
@@ -198,7 +211,22 @@ const soundToggle = document.getElementById("soundToggle");
 const notifToggle = document.getElementById("notifToggle");
 const autoStartBreaksToggle = document.getElementById("autoStartBreaks");
 
+// Ambient Sheet Elements (Blanket Mode)
+const ambientBtn = document.getElementById("ambientBtn");
+const ambientActiveDot = document.getElementById("ambientActiveDot");
+const ambientModal = document.getElementById("ambientModal");
+const closeAmbientBtn = document.getElementById("closeAmbientBtn");
+const ambientMasterMuteBtn = document.getElementById("ambientMasterMuteBtn");
+const ambientMuteOffIcon = document.getElementById("ambientMuteOffIcon");
+const ambientMuteOnIcon = document.getElementById("ambientMuteOnIcon");
+const ambientMasterSlider = document.getElementById("ambientMasterSlider");
+const ambientMasterVolVal = document.getElementById("ambientMasterVolVal");
+const ambientSyncToggle = document.getElementById("ambientSyncToggle");
+const ambientTracksContainer = document.getElementById("ambientTracksContainer");
+const presetPills = document.querySelectorAll(".preset-pill");
+
 const soundPlayer = new SoundPlayer();
+const ambientEngine = new AmbientSoundEngine();
 const tickElements = [];
 
 // Build 60 radial chronometer ticks in SVG
@@ -337,6 +365,7 @@ function renderState(snapshot) {
   }
 
   renderCycleBars(snapshot.currentCycle, snapshot.longBreakInterval);
+  ambientEngine.handleTimerStateChange(snapshot);
 }
 
 // Initialize Preferences & Engine
@@ -481,6 +510,131 @@ saveSettingsBtn.addEventListener("click", () => {
   settingsModal.classList.add("hidden");
 });
 
+// Ambient UI Logic
+function updateAmbientActiveState() {
+  const hasActive = Object.values(ambientEngine.settings.tracks).some((t) => t.enabled);
+  ambientActiveDot.classList.toggle("hidden", !hasActive || ambientEngine.isMuted);
+  ambientMasterMuteBtn.classList.toggle("muted", ambientEngine.isMuted);
+  ambientMuteOffIcon.classList.toggle("hidden", ambientEngine.isMuted);
+  ambientMuteOnIcon.classList.toggle("hidden", !ambientEngine.isMuted);
+}
+
+function renderAmbientUI() {
+  ambientMasterSlider.value = String(Math.round(ambientEngine.settings.masterVolume * 100));
+  ambientMasterVolVal.textContent = `${ambientMasterSlider.value}%`;
+  ambientSyncToggle.checked = ambientEngine.settings.syncWithFocus;
+  updateAmbientActiveState();
+
+  ambientTracksContainer.innerHTML = "";
+  ambientEngine.trackDefs.forEach((def) => {
+    const trackCfg = ambientEngine.settings.tracks[def.id] || { enabled: false, volume: def.defaultVolume };
+    const pct = Math.round(trackCfg.volume * 100);
+
+    const card = document.createElement("div");
+    card.className = `ambient-track-card${trackCfg.enabled ? " active" : ""}`;
+    card.id = `ambientCard-${def.id}`;
+
+    card.innerHTML = `
+      <div class="ambient-track-header">
+        <div class="ambient-track-info">
+          <div class="ambient-track-icon">
+            ${TRACK_ICONS[def.icon] || TRACK_ICONS.rain}
+          </div>
+          <div class="ambient-track-text">
+            <span class="ambient-track-name">${def.name}</span>
+            <span class="ambient-track-desc">${def.description}</span>
+          </div>
+        </div>
+        <div class="ambient-track-controls">
+          <button type="button" class="ambient-toggle-btn" aria-label="Toggle ${def.name}" title="Toggle ${def.name}">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="${trackCfg.enabled ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="ambient-slider-row">
+        <input type="range" min="0" max="100" value="${pct}" class="ambient-range ambient-track-slider" aria-label="${def.name} Volume" />
+        <span class="ambient-track-pct">${pct}%</span>
+      </div>
+    `;
+
+    const toggleBtn = card.querySelector(".ambient-toggle-btn");
+    const slider = card.querySelector(".ambient-track-slider");
+    const pctLabel = card.querySelector(".ambient-track-pct");
+
+    toggleBtn.addEventListener("click", () => {
+      const active = ambientEngine.toggleTrack(def.id);
+      card.classList.toggle("active", active);
+      const poly = toggleBtn.querySelector("polygon");
+      if (poly) poly.setAttribute("fill", active ? "currentColor" : "none");
+      updateAmbientActiveState();
+    });
+
+    slider.addEventListener("input", (e) => {
+      const val = parseInt(e.target.value, 10);
+      pctLabel.textContent = `${val}%`;
+      ambientEngine.setTrackVolume(def.id, val / 100);
+      if (!ambientEngine.settings.tracks[def.id].enabled && val > 0) {
+        ambientEngine.toggleTrack(def.id, true);
+        card.classList.add("active");
+        const poly = toggleBtn.querySelector("polygon");
+        if (poly) poly.setAttribute("fill", "currentColor");
+        updateAmbientActiveState();
+      }
+    });
+
+    ambientTracksContainer.appendChild(card);
+  });
+}
+
+// Initial ambient UI state
+renderAmbientUI();
+
+// Ambient Event Listeners
+ambientBtn.addEventListener("click", () => {
+  renderAmbientUI();
+  ambientModal.classList.remove("hidden");
+});
+
+closeAmbientBtn.addEventListener("click", () => {
+  ambientModal.classList.add("hidden");
+});
+
+ambientModal.addEventListener("click", (e) => {
+  if (e.target === ambientModal) {
+    ambientModal.classList.add("hidden");
+  }
+});
+
+ambientMasterMuteBtn.addEventListener("click", () => {
+  ambientEngine.toggleMute();
+  updateAmbientActiveState();
+});
+
+ambientMasterSlider.addEventListener("input", (e) => {
+  const val = parseInt(e.target.value, 10);
+  ambientMasterVolVal.textContent = `${val}%`;
+  ambientEngine.setMasterVolume(val / 100);
+});
+
+ambientSyncToggle.addEventListener("change", () => {
+  ambientEngine.setSyncWithFocus(ambientSyncToggle.checked);
+  ambientEngine.handleTimerStateChange(engine.getSnapshot());
+});
+
+presetPills.forEach((pill) => {
+  pill.addEventListener("click", () => {
+    presetPills.forEach((p) => p.classList.remove("active"));
+    if (pill.dataset.preset !== "clear-all") {
+      pill.classList.add("active");
+    }
+    ambientEngine.applyPreset(pill.dataset.preset);
+    renderAmbientUI();
+    updateAmbientActiveState();
+  });
+});
+
 // Keyboard shortcuts (ignored when typing in inputs)
 window.addEventListener("keydown", (e) => {
   const tag = document.activeElement?.tagName;
@@ -491,12 +645,20 @@ window.addEventListener("keydown", (e) => {
     return;
   }
 
-  if (e.key === "Escape" && !settingsModal.classList.contains("hidden")) {
-    settingsModal.classList.add("hidden");
-    return;
+  if (e.key === "Escape") {
+    let closedAny = false;
+    if (!settingsModal.classList.contains("hidden")) {
+      settingsModal.classList.add("hidden");
+      closedAny = true;
+    }
+    if (!ambientModal.classList.contains("hidden")) {
+      ambientModal.classList.add("hidden");
+      closedAny = true;
+    }
+    if (closedAny) return;
   }
 
-  if (!settingsModal.classList.contains("hidden")) return;
+  if (!settingsModal.classList.contains("hidden") || !ambientModal.classList.contains("hidden")) return;
 
   if (e.code === "Space") {
     e.preventDefault();
@@ -507,6 +669,8 @@ window.addEventListener("keydown", (e) => {
     skipBtn.click();
   } else if (e.key === "m" || e.key === "M") {
     quickSoundBtn.click();
+  } else if (e.key === "b" || e.key === "B") {
+    ambientBtn.click();
   } else if (e.key === "t" || e.key === "T") {
     themeBtn.click();
   }
