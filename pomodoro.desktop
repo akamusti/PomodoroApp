@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Pomodoro
 Comment=A sleek, distraction-free Pomodoro timer for Linux
-Exec=pomodoro-app
+Exec=env WEBKIT_DISABLE_DMABUF_RENDERER=1 pomodoro-app
 Icon=pomodoro
 Terminal=false
 Type=Application

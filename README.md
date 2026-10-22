@@ -30,9 +30,12 @@ Compatible with almost all modern distributions (Fedora, Ubuntu, Arch Linux, Deb
    ```
 
 > [!TIP]
-> If you use Ubuntu 22.04+ or a system without FUSE 2, install `libfuse2` if needed:
-> - **Ubuntu / Debian:** `sudo apt install libfuse2`
-> - **Fedora:** `sudo dnf install fuse-libs`
+> - If you use Ubuntu 22.04+ or a system without FUSE 2, install `libfuse2` if needed:
+>   - **Ubuntu / Debian:** `sudo apt install libfuse2`
+>   - **Fedora:** `sudo dnf install fuse-libs`
+> - If your graphics driver (NVIDIA / Mesa on Wayland) encounters a WebKitGTK assertion crash, run with:
+>   `WEBKIT_DISABLE_DMABUF_RENDERER=1 ./Pomodoro_*_amd64.AppImage`
+>   *(Note: As of v1.2.2, this fallback is automatically built-in).*
 
 ---
 
