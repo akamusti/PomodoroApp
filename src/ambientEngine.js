@@ -92,15 +92,19 @@ export class AmbientSoundEngine {
   }
 
   setContext(ctx) {
+    if (!ctx) return;
     this.ctx = ctx;
-    if (this.ctx && !this.masterGain) {
+    if (!this.masterGain && this.ctx) {
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(this.settings.masterVolume, this.ctx.currentTime);
+      this.masterGain.gain.value = this.isMuted ? 0 : this.settings.masterVolume;
       this.masterGain.connect(this.ctx.destination);
+    }
+    if (this.ctx && !this.isGenerated) {
+      this.generateBuffers();
     }
   }
 
-  initContext() {
+  async initContext() {
     try {
       if (!this.ctx) {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -110,12 +114,12 @@ export class AmbientSoundEngine {
 
       if (!this.masterGain && this.ctx) {
         this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.setValueAtTime(this.settings.masterVolume, this.ctx.currentTime);
+        this.masterGain.gain.value = this.isMuted ? 0 : this.settings.masterVolume;
         this.masterGain.connect(this.ctx.destination);
       }
 
       if (this.ctx.state === "suspended") {
-        this.ctx.resume();
+        await this.ctx.resume();
       }
 
       if (!this.isGenerated) {
@@ -302,10 +306,11 @@ export class AmbientSoundEngine {
       }
     });
 
-    // Helper to package Float32Array into Web Audio AudioBuffer
+    // Helper to package Float32Array into Web Audio AudioBuffer (2-channel stereo for Linux PipeWire/PulseAudio)
     const createAudioBuffer = (channelData) => {
-      const buf = this.ctx.createBuffer(1, len, sampleRate);
+      const buf = this.ctx.createBuffer(2, len, sampleRate);
       buf.getChannelData(0).set(channelData);
+      buf.getChannelData(1).set(channelData);
       return buf;
     };
 
@@ -324,24 +329,36 @@ export class AmbientSoundEngine {
     this.isGenerated = true;
   }
 
-  startTrack(trackId) {
-    if (!this.initContext()) return;
+  async startTrack(trackId) {
+    const ready = await this.initContext();
+    if (!ready) return;
     if (this.activeTracks.has(trackId)) return;
 
     const buffer = this.buffers[trackId];
     if (!buffer) return;
 
     try {
+      if (this.ctx.state === "suspended") {
+        await this.ctx.resume();
+      }
+
       const src = this.ctx.createBufferSource();
       src.buffer = buffer;
       src.loop = true;
+      src.loopStart = 0;
+      src.loopEnd = buffer.duration; // Required for WebKitGTK / Safari loop parsing
 
       const trackGain = this.ctx.createGain();
       const trackVol = this.settings.tracks[trackId]?.volume ?? 0.5;
-      trackGain.gain.setValueAtTime(trackVol, this.ctx.currentTime);
+      trackGain.gain.value = trackVol;
 
       src.connect(trackGain);
       trackGain.connect(this.masterGain);
+
+      if (this.masterGain) {
+        this.masterGain.gain.value = this.isMuted ? 0 : this.settings.masterVolume;
+      }
+
       src.start(0);
 
       this.activeTracks.set(trackId, {
@@ -373,13 +390,13 @@ export class AmbientSoundEngine {
     const active = this.activeTracks.get(trackId);
     if (active && this.ctx) {
       try {
-        active.gainNode.gain.setValueAtTime(vol, this.ctx.currentTime);
+        active.gainNode.gain.value = vol;
       } catch (_) {}
     }
     this.saveSettings();
   }
 
-  toggleTrack(trackId, forceState = null) {
+  async toggleTrack(trackId, forceState = null) {
     const currentState = this.settings.tracks[trackId]?.enabled ?? false;
     const nextState = forceState !== null ? forceState : !currentState;
 
@@ -390,7 +407,7 @@ export class AmbientSoundEngine {
     this.saveSettings();
 
     if (nextState) {
-      this.startTrack(trackId);
+      await this.startTrack(trackId);
     } else {
       this.stopTrack(trackId);
     }
@@ -403,7 +420,7 @@ export class AmbientSoundEngine {
     this.settings.masterVolume = vol;
     if (this.masterGain && this.ctx) {
       try {
-        this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : vol, this.ctx.currentTime);
+        this.masterGain.gain.value = this.isMuted ? 0 : vol;
       } catch (_) {}
     }
     this.saveSettings();
@@ -413,10 +430,7 @@ export class AmbientSoundEngine {
     this.isMuted = !this.isMuted;
     if (this.masterGain && this.ctx) {
       try {
-        this.masterGain.gain.setValueAtTime(
-          this.isMuted ? 0 : this.settings.masterVolume,
-          this.ctx.currentTime
-        );
+        this.masterGain.gain.value = this.isMuted ? 0 : this.settings.masterVolume;
       } catch (_) {}
     }
     return this.isMuted;
@@ -437,13 +451,14 @@ export class AmbientSoundEngine {
     }
   }
 
-  resumeAllEnabled() {
-    if (!this.initContext()) return;
-    Object.entries(this.settings.tracks).forEach(([id, cfg]) => {
+  async resumeAllEnabled() {
+    const ready = await this.initContext();
+    if (!ready) return;
+    for (const [id, cfg] of Object.entries(this.settings.tracks)) {
       if (cfg.enabled) {
-        this.startTrack(id);
+        await this.startTrack(id);
       }
-    });
+    }
   }
 
   stopAllActive() {
@@ -452,7 +467,7 @@ export class AmbientSoundEngine {
     });
   }
 
-  applyPreset(presetName) {
+  async applyPreset(presetName) {
     // Stop all first
     this.trackDefs.forEach((def) => {
       this.stopTrack(def.id);
@@ -461,28 +476,28 @@ export class AmbientSoundEngine {
 
     switch (presetName) {
       case "rainy-night":
-        this.toggleTrack("rain", true);
-        this.setTrackVolume("rain", 0.7);
-        this.toggleTrack("storm", true);
-        this.setTrackVolume("storm", 0.45);
+        await this.toggleTrack("rain", true);
+        this.setTrackVolume("rain", 0.75);
+        await this.toggleTrack("storm", true);
+        this.setTrackVolume("storm", 0.55);
         break;
       case "cozy-fireplace":
-        this.toggleTrack("fireplace", true);
-        this.setTrackVolume("fireplace", 0.65);
-        this.toggleTrack("wind", true);
-        this.setTrackVolume("wind", 0.35);
+        await this.toggleTrack("fireplace", true);
+        this.setTrackVolume("fireplace", 0.7);
+        await this.toggleTrack("wind", true);
+        this.setTrackVolume("wind", 0.45);
         break;
       case "deep-focus":
-        this.toggleTrack("brownNoise", true);
-        this.setTrackVolume("brownNoise", 0.55);
-        this.toggleTrack("rain", true);
-        this.setTrackVolume("rain", 0.4);
+        await this.toggleTrack("brownNoise", true);
+        this.setTrackVolume("brownNoise", 0.65);
+        await this.toggleTrack("rain", true);
+        this.setTrackVolume("rain", 0.5);
         break;
       case "peaceful-nature":
-        this.toggleTrack("forest", true);
-        this.setTrackVolume("forest", 0.6);
-        this.toggleTrack("wind", true);
-        this.setTrackVolume("wind", 0.3);
+        await this.toggleTrack("forest", true);
+        this.setTrackVolume("forest", 0.7);
+        await this.toggleTrack("wind", true);
+        this.setTrackVolume("wind", 0.4);
         break;
       case "clear-all":
       default:

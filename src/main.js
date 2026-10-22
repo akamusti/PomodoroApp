@@ -573,9 +573,13 @@ function renderAmbientUI() {
     const slider = card.querySelector(".ambient-track-slider");
     const pctLabel = card.querySelector(".ambient-track-pct");
 
-    toggleBtn.addEventListener("click", () => {
-      ambientEngine.setContext(getSharedAudioContext());
-      const active = ambientEngine.toggleTrack(def.id);
+    toggleBtn.addEventListener("click", async () => {
+      const ctx = getSharedAudioContext();
+      if (ctx && ctx.state === "suspended") {
+        await ctx.resume().catch(() => {});
+      }
+      ambientEngine.setContext(ctx);
+      const active = await ambientEngine.toggleTrack(def.id);
       card.classList.toggle("active", active);
       const poly = toggleBtn.querySelector("polygon");
       if (poly) poly.setAttribute("fill", active ? "currentColor" : "none");
@@ -583,16 +587,21 @@ function renderAmbientUI() {
     });
 
     slider.addEventListener("input", (e) => {
-      ambientEngine.setContext(getSharedAudioContext());
+      const ctx = getSharedAudioContext();
+      if (ctx && ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+      ambientEngine.setContext(ctx);
       const val = parseInt(e.target.value, 10);
       pctLabel.textContent = `${val}%`;
       ambientEngine.setTrackVolume(def.id, val / 100);
       if (!ambientEngine.settings.tracks[def.id].enabled && val > 0) {
-        ambientEngine.toggleTrack(def.id, true);
-        card.classList.add("active");
-        const poly = toggleBtn.querySelector("polygon");
-        if (poly) poly.setAttribute("fill", "currentColor");
-        updateAmbientActiveState();
+        ambientEngine.toggleTrack(def.id, true).then(() => {
+          card.classList.add("active");
+          const poly = toggleBtn.querySelector("polygon");
+          if (poly) poly.setAttribute("fill", "currentColor");
+          updateAmbientActiveState();
+        });
       }
     });
 
@@ -628,8 +637,15 @@ function syncAmbientUIValues() {
 renderAmbientUI();
 
 // Ambient Event Listeners
-ambientBtn.addEventListener("click", () => {
-  ambientEngine.setContext(getSharedAudioContext());
+ambientBtn.addEventListener("click", async () => {
+  const ctx = getSharedAudioContext();
+  if (ctx && ctx.state === "suspended") {
+    await ctx.resume().catch(() => {});
+  }
+  ambientEngine.setContext(ctx);
+  if (!ambientEngine.settings.syncWithFocus) {
+    await ambientEngine.resumeAllEnabled();
+  }
   syncAmbientUIValues();
   ambientModal.classList.remove("hidden");
 });
@@ -645,13 +661,18 @@ ambientModal.addEventListener("click", (e) => {
 });
 
 ambientMasterMuteBtn.addEventListener("click", () => {
-  ambientEngine.setContext(getSharedAudioContext());
+  const ctx = getSharedAudioContext();
+  if (ctx && ctx.state === "suspended") {
+    ctx.resume().catch(() => {});
+  }
+  ambientEngine.setContext(ctx);
   ambientEngine.toggleMute();
   updateAmbientActiveState();
 });
 
 ambientMasterSlider.addEventListener("input", (e) => {
-  ambientEngine.setContext(getSharedAudioContext());
+  const ctx = getSharedAudioContext();
+  ambientEngine.setContext(ctx);
   const val = parseInt(e.target.value, 10);
   ambientMasterVolVal.textContent = `${val}%`;
   ambientEngine.setMasterVolume(val / 100);
@@ -663,17 +684,42 @@ ambientSyncToggle.addEventListener("change", () => {
 });
 
 presetPills.forEach((pill) => {
-  pill.addEventListener("click", () => {
-    ambientEngine.setContext(getSharedAudioContext());
+  pill.addEventListener("click", async () => {
+    const ctx = getSharedAudioContext();
+    if (ctx && ctx.state === "suspended") {
+      await ctx.resume().catch(() => {});
+    }
+    ambientEngine.setContext(ctx);
     presetPills.forEach((p) => p.classList.remove("active"));
     if (pill.dataset.preset !== "clear-all") {
       pill.classList.add("active");
     }
-    ambientEngine.applyPreset(pill.dataset.preset);
+    await ambientEngine.applyPreset(pill.dataset.preset);
     syncAmbientUIValues();
     updateAmbientActiveState();
   });
 });
+
+// Auto-unlock audio context on any user interaction
+let audioUnlocked = false;
+const unlockAudioOnInteraction = async () => {
+  if (audioUnlocked) return;
+  const ctx = getSharedAudioContext();
+  if (ctx) {
+    if (ctx.state === "suspended") {
+      await ctx.resume().catch(() => {});
+    }
+    ambientEngine.setContext(ctx);
+    if (!ambientEngine.settings.syncWithFocus) {
+      await ambientEngine.resumeAllEnabled();
+    }
+    audioUnlocked = true;
+    window.removeEventListener("pointerdown", unlockAudioOnInteraction);
+    window.removeEventListener("keydown", unlockAudioOnInteraction);
+  }
+};
+window.addEventListener("pointerdown", unlockAudioOnInteraction);
+window.addEventListener("keydown", unlockAudioOnInteraction);
 
 // Keyboard shortcuts (ignored when typing in inputs)
 window.addEventListener("keydown", (e) => {
