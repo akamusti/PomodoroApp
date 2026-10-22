@@ -574,11 +574,6 @@ function renderAmbientUI() {
     const pctLabel = card.querySelector(".ambient-track-pct");
 
     toggleBtn.addEventListener("click", async () => {
-      const ctx = getSharedAudioContext();
-      if (ctx && ctx.state === "suspended") {
-        await ctx.resume().catch(() => {});
-      }
-      ambientEngine.setContext(ctx);
       const active = await ambientEngine.toggleTrack(def.id);
       card.classList.toggle("active", active);
       const poly = toggleBtn.querySelector("polygon");
@@ -587,11 +582,6 @@ function renderAmbientUI() {
     });
 
     slider.addEventListener("input", (e) => {
-      const ctx = getSharedAudioContext();
-      if (ctx && ctx.state === "suspended") {
-        ctx.resume().catch(() => {});
-      }
-      ambientEngine.setContext(ctx);
       const val = parseInt(e.target.value, 10);
       pctLabel.textContent = `${val}%`;
       ambientEngine.setTrackVolume(def.id, val / 100);
@@ -638,11 +628,6 @@ renderAmbientUI();
 
 // Ambient Event Listeners
 ambientBtn.addEventListener("click", async () => {
-  const ctx = getSharedAudioContext();
-  if (ctx && ctx.state === "suspended") {
-    await ctx.resume().catch(() => {});
-  }
-  ambientEngine.setContext(ctx);
   if (!ambientEngine.settings.syncWithFocus) {
     await ambientEngine.resumeAllEnabled();
   }
@@ -661,18 +646,11 @@ ambientModal.addEventListener("click", (e) => {
 });
 
 ambientMasterMuteBtn.addEventListener("click", () => {
-  const ctx = getSharedAudioContext();
-  if (ctx && ctx.state === "suspended") {
-    ctx.resume().catch(() => {});
-  }
-  ambientEngine.setContext(ctx);
   ambientEngine.toggleMute();
   updateAmbientActiveState();
 });
 
 ambientMasterSlider.addEventListener("input", (e) => {
-  const ctx = getSharedAudioContext();
-  ambientEngine.setContext(ctx);
   const val = parseInt(e.target.value, 10);
   ambientMasterVolVal.textContent = `${val}%`;
   ambientEngine.setMasterVolume(val / 100);
@@ -685,11 +663,6 @@ ambientSyncToggle.addEventListener("change", () => {
 
 presetPills.forEach((pill) => {
   pill.addEventListener("click", async () => {
-    const ctx = getSharedAudioContext();
-    if (ctx && ctx.state === "suspended") {
-      await ctx.resume().catch(() => {});
-    }
-    ambientEngine.setContext(ctx);
     presetPills.forEach((p) => p.classList.remove("active"));
     if (pill.dataset.preset !== "clear-all") {
       pill.classList.add("active");
@@ -700,22 +673,17 @@ presetPills.forEach((pill) => {
   });
 });
 
-// Auto-unlock audio context on any user interaction
+// On first user interaction: warm up the cue-tone AudioContext (non-blocking)
+// and resume previously enabled ambient tracks (autoplay needs a user gesture).
 let audioUnlocked = false;
-const unlockAudioOnInteraction = async () => {
+const unlockAudioOnInteraction = () => {
   if (audioUnlocked) return;
-  const ctx = getSharedAudioContext();
-  if (ctx) {
-    if (ctx.state === "suspended") {
-      await ctx.resume().catch(() => {});
-    }
-    ambientEngine.setContext(ctx);
-    if (!ambientEngine.settings.syncWithFocus) {
-      await ambientEngine.resumeAllEnabled();
-    }
-    audioUnlocked = true;
-    window.removeEventListener("pointerdown", unlockAudioOnInteraction);
-    window.removeEventListener("keydown", unlockAudioOnInteraction);
+  audioUnlocked = true;
+  window.removeEventListener("pointerdown", unlockAudioOnInteraction);
+  window.removeEventListener("keydown", unlockAudioOnInteraction);
+  getSharedAudioContext();
+  if (!ambientEngine.settings.syncWithFocus) {
+    ambientEngine.resumeAllEnabled();
   }
 };
 window.addEventListener("pointerdown", unlockAudioOnInteraction);

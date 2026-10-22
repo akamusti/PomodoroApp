@@ -1,17 +1,59 @@
 /**
  * Ambient Sound Engine (Blanket-style)
- * High-performance, zero-CPU procedural ambient noise synthesizer using pre-rendered
- * seamless looped AudioBuffers in Web Audio API.
- * Designed specifically for Linux WebKitGTK and Windows WebView2 stability.
+ * Procedural ambient noise synthesizer. Loops are rendered once into in-memory
+ * WAV blobs and played through looping HTMLAudioElements.
+ *
+ * Why not Web Audio? On Linux WebKitGTK, AudioContext.resume() may never settle
+ * and buffer sources can stay silent. HTMLAudioElement goes through the
+ * GStreamer playbin pipeline, which is reliable on WebKitGTK and WebView2.
  */
 
+const SAMPLE_RATE = 44100;
+const LOOP_SECONDS = 8.0;
+
+/**
+ * Encodes mono Float32 samples into a 16-bit PCM WAV Blob.
+ */
+function encodeWav(samples, sampleRate) {
+  const bytesPerSample = 2;
+  const dataSize = samples.length * bytesPerSample;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  const writeStr = (offset, str) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+
+  writeStr(0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
+  view.setUint32(16, 16, true); // PCM chunk size
+  view.setUint16(20, 1, true); // PCM format
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * bytesPerSample, true);
+  view.setUint16(32, bytesPerSample, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, "data");
+  view.setUint32(40, dataSize, true);
+
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    offset += 2;
+  }
+
+  return new Blob([buffer], { type: "audio/wav" });
+}
+
 export class AmbientSoundEngine {
-  constructor(sharedAudioCtx = null) {
-    this.ctx = sharedAudioCtx;
-    this.masterGain = null;
+  constructor() {
     this.isMuted = false;
     this.activeTracks = new Map();
-    this.buffers = {};
+    this.samples = {};
+    this.urls = {};
     this.isGenerated = false;
 
     // Track definitions
@@ -91,47 +133,6 @@ export class AmbientSoundEngine {
     this.loadSettings();
   }
 
-  setContext(ctx) {
-    if (!ctx) return;
-    this.ctx = ctx;
-    if (!this.masterGain && this.ctx) {
-      this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.value = this.isMuted ? 0 : this.settings.masterVolume;
-      this.masterGain.connect(this.ctx.destination);
-    }
-    if (this.ctx && !this.isGenerated) {
-      this.generateBuffers();
-    }
-  }
-
-  async initContext() {
-    try {
-      if (!this.ctx) {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return false;
-        this.ctx = new AudioCtx();
-      }
-
-      if (!this.masterGain && this.ctx) {
-        this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.value = this.isMuted ? 0 : this.settings.masterVolume;
-        this.masterGain.connect(this.ctx.destination);
-      }
-
-      if (this.ctx.state === "suspended") {
-        await this.ctx.resume();
-      }
-
-      if (!this.isGenerated) {
-        this.generateBuffers();
-      }
-      return true;
-    } catch (e) {
-      console.warn("AudioContext initialization warning:", e);
-      return false;
-    }
-  }
-
   loadSettings() {
     try {
       const saved = localStorage.getItem("pomodoro_ambient_settings");
@@ -167,14 +168,14 @@ export class AmbientSoundEngine {
   }
 
   /**
-   * Pre-generates seamless, crossfaded 6-second looping audio buffers.
-   * Runs once in ~80ms without blocking.
+   * Pre-generates seamless, crossfaded looping sample arrays.
+   * Runs once (lazily on first playback) in well under 100ms.
    */
   generateBuffers() {
-    if (!this.ctx || this.isGenerated) return;
+    if (this.isGenerated) return;
 
-    const sampleRate = this.ctx.sampleRate || 44100;
-    const duration = 6.0;
+    const sampleRate = SAMPLE_RATE;
+    const duration = LOOP_SECONDS;
     const len = Math.floor(sampleRate * duration);
 
     // 1. White noise
@@ -293,80 +294,86 @@ export class AmbientSoundEngine {
     addClink(2.5);
     addClink(5.1);
 
-    // Seamless crossfade: blend last 0.25s smoothly with first 0.25s to eliminate any clicks
+    // Seamless crossfade: blend the last 0.25s into the first 0.25s, then trim the
+    // tail so the loop point (end -> start) is sample-continuous and click-free.
     const fadeLen = Math.floor(sampleRate * 0.25);
-    const allArrays = [
-      whiteData, brownData, pinkData, rainData, stormData,
-      windData, wavesData, fireData, forestData, cafeData
-    ];
-    allArrays.forEach((arr) => {
+    const loopLen = len - fadeLen;
+    const seamless = (arr) => {
       for (let i = 0; i < fadeLen; i++) {
         const t = i / fadeLen;
-        arr[i] = arr[i] * t + arr[len - fadeLen + i] * (1 - t);
+        arr[i] = arr[i] * t + arr[loopLen + i] * (1 - t);
       }
-    });
-
-    // Helper to package Float32Array into Web Audio AudioBuffer (2-channel stereo for Linux PipeWire/PulseAudio)
-    const createAudioBuffer = (channelData) => {
-      const buf = this.ctx.createBuffer(2, len, sampleRate);
-      buf.getChannelData(0).set(channelData);
-      buf.getChannelData(1).set(channelData);
-      return buf;
+      return arr.subarray(0, loopLen);
     };
 
-    this.buffers = {
-      rain: createAudioBuffer(rainData),
-      storm: createAudioBuffer(stormData),
-      wind: createAudioBuffer(windData),
-      waves: createAudioBuffer(wavesData),
-      fireplace: createAudioBuffer(fireData),
-      forest: createAudioBuffer(forestData),
-      cafe: createAudioBuffer(cafeData),
-      whiteNoise: createAudioBuffer(whiteData),
-      brownNoise: createAudioBuffer(brownData),
+    this.samples = {
+      rain: seamless(rainData),
+      storm: seamless(stormData),
+      wind: seamless(windData),
+      waves: seamless(wavesData),
+      fireplace: seamless(fireData),
+      forest: seamless(forestData),
+      cafe: seamless(cafeData),
+      whiteNoise: seamless(whiteData),
+      brownNoise: seamless(brownData),
     };
 
     this.isGenerated = true;
   }
 
-  async startTrack(trackId) {
-    const ready = await this.initContext();
-    if (!ready) return;
-    if (this.activeTracks.has(trackId)) return;
+  /**
+   * Returns (and lazily creates) an object URL holding the WAV loop for a track.
+   */
+  getTrackUrl(trackId) {
+    if (this.urls[trackId]) return this.urls[trackId];
+    this.generateBuffers();
+    const data = this.samples[trackId];
+    if (!data) return null;
+    const url = URL.createObjectURL(encodeWav(data, SAMPLE_RATE));
+    this.urls[trackId] = url;
+    return url;
+  }
 
-    const buffer = this.buffers[trackId];
-    if (!buffer) return;
+  effectiveVolume(trackId) {
+    if (this.isMuted) return 0;
+    const trackVol = this.settings.tracks[trackId]?.volume ?? 0.5;
+    return Math.max(0, Math.min(1, trackVol * this.settings.masterVolume));
+  }
+
+  applyVolumes() {
+    this.activeTracks.forEach(({ audio }, id) => {
+      try {
+        audio.volume = this.effectiveVolume(id);
+      } catch (_) {}
+    });
+  }
+
+  async startTrack(trackId) {
+    if (this.activeTracks.has(trackId)) return;
+    if (typeof Audio === "undefined") return;
 
     try {
-      if (this.ctx.state === "suspended") {
-        await this.ctx.resume();
+      const url = this.getTrackUrl(trackId);
+      if (!url) return;
+
+      const audio = new Audio();
+      audio.loop = true;
+      audio.preload = "auto";
+      audio.src = url;
+      audio.volume = this.effectiveVolume(trackId);
+
+      this.activeTracks.set(trackId, { audio });
+
+      // Do not await: on some WebKitGTK builds the play() promise settles late.
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch((e) => {
+          console.warn(`Could not start ambient track ${trackId}:`, e);
+        });
       }
-
-      const src = this.ctx.createBufferSource();
-      src.buffer = buffer;
-      src.loop = true;
-      src.loopStart = 0;
-      src.loopEnd = buffer.duration; // Required for WebKitGTK / Safari loop parsing
-
-      const trackGain = this.ctx.createGain();
-      const trackVol = this.settings.tracks[trackId]?.volume ?? 0.5;
-      trackGain.gain.value = trackVol;
-
-      src.connect(trackGain);
-      trackGain.connect(this.masterGain);
-
-      if (this.masterGain) {
-        this.masterGain.gain.value = this.isMuted ? 0 : this.settings.masterVolume;
-      }
-
-      src.start(0);
-
-      this.activeTracks.set(trackId, {
-        sourceNode: src,
-        gainNode: trackGain,
-      });
     } catch (e) {
       console.warn(`Could not start ambient track ${trackId}:`, e);
+      this.activeTracks.delete(trackId);
     }
   }
 
@@ -374,9 +381,9 @@ export class AmbientSoundEngine {
     const active = this.activeTracks.get(trackId);
     if (active) {
       try {
-        active.sourceNode.stop();
-        active.sourceNode.disconnect();
-        active.gainNode.disconnect();
+        active.audio.pause();
+        active.audio.removeAttribute("src");
+        active.audio.load();
       } catch (_) {}
       this.activeTracks.delete(trackId);
     }
@@ -388,9 +395,9 @@ export class AmbientSoundEngine {
       this.settings.tracks[trackId].volume = vol;
     }
     const active = this.activeTracks.get(trackId);
-    if (active && this.ctx) {
+    if (active) {
       try {
-        active.gainNode.gain.value = vol;
+        active.audio.volume = this.effectiveVolume(trackId);
       } catch (_) {}
     }
     this.saveSettings();
@@ -418,21 +425,13 @@ export class AmbientSoundEngine {
   setMasterVolume(volume) {
     const vol = Math.max(0, Math.min(1, volume));
     this.settings.masterVolume = vol;
-    if (this.masterGain && this.ctx) {
-      try {
-        this.masterGain.gain.value = this.isMuted ? 0 : vol;
-      } catch (_) {}
-    }
+    this.applyVolumes();
     this.saveSettings();
   }
 
   toggleMute() {
     this.isMuted = !this.isMuted;
-    if (this.masterGain && this.ctx) {
-      try {
-        this.masterGain.gain.value = this.isMuted ? 0 : this.settings.masterVolume;
-      } catch (_) {}
-    }
+    this.applyVolumes();
     return this.isMuted;
   }
 
@@ -452,8 +451,6 @@ export class AmbientSoundEngine {
   }
 
   async resumeAllEnabled() {
-    const ready = await this.initContext();
-    if (!ready) return;
     for (const [id, cfg] of Object.entries(this.settings.tracks)) {
       if (cfg.enabled) {
         await this.startTrack(id);
