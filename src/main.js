@@ -17,6 +17,24 @@ const TRACK_ICONS = {
   "waves-deep": `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0M2 17c2-4 4-4 6 0s4 4 6 0 4-4 6 0"></path></svg>`,
 };
 
+let globalAudioCtx = null;
+function getSharedAudioContext() {
+  try {
+    if (!globalAudioCtx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        globalAudioCtx = new AudioCtx();
+      }
+    }
+    if (globalAudioCtx && globalAudioCtx.state === "suspended") {
+      globalAudioCtx.resume();
+    }
+  } catch (e) {
+    console.warn("AudioContext error:", e);
+  }
+  return globalAudioCtx;
+}
+
 // Subtle acoustic synthesizer using Web Audio API
 class SoundPlayer {
   constructor() {
@@ -24,15 +42,7 @@ class SoundPlayer {
   }
 
   init() {
-    if (!this.ctx) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) {
-        this.ctx = new AudioCtx();
-      }
-    }
-    if (this.ctx && this.ctx.state === "suspended") {
-      this.ctx.resume();
-    }
+    this.ctx = getSharedAudioContext();
   }
 
   playToneSequence(notes) {
@@ -564,6 +574,7 @@ function renderAmbientUI() {
     const pctLabel = card.querySelector(".ambient-track-pct");
 
     toggleBtn.addEventListener("click", () => {
+      ambientEngine.setContext(getSharedAudioContext());
       const active = ambientEngine.toggleTrack(def.id);
       card.classList.toggle("active", active);
       const poly = toggleBtn.querySelector("polygon");
@@ -572,6 +583,7 @@ function renderAmbientUI() {
     });
 
     slider.addEventListener("input", (e) => {
+      ambientEngine.setContext(getSharedAudioContext());
       const val = parseInt(e.target.value, 10);
       pctLabel.textContent = `${val}%`;
       ambientEngine.setTrackVolume(def.id, val / 100);
@@ -588,12 +600,37 @@ function renderAmbientUI() {
   });
 }
 
-// Initial ambient UI state
+function syncAmbientUIValues() {
+  ambientMasterSlider.value = String(Math.round(ambientEngine.settings.masterVolume * 100));
+  ambientMasterVolVal.textContent = `${ambientMasterSlider.value}%`;
+  ambientSyncToggle.checked = ambientEngine.settings.syncWithFocus;
+  updateAmbientActiveState();
+
+  ambientEngine.trackDefs.forEach((def) => {
+    const card = document.getElementById(`ambientCard-${def.id}`);
+    if (!card) return;
+    const trackCfg = ambientEngine.settings.tracks[def.id] || { enabled: false, volume: def.defaultVolume };
+    const pct = Math.round(trackCfg.volume * 100);
+
+    card.classList.toggle("active", trackCfg.enabled);
+    const poly = card.querySelector(".ambient-toggle-btn polygon");
+    if (poly) poly.setAttribute("fill", trackCfg.enabled ? "currentColor" : "none");
+
+    const slider = card.querySelector(".ambient-track-slider");
+    if (slider) slider.value = String(pct);
+
+    const pctLabel = card.querySelector(".ambient-track-pct");
+    if (pctLabel) pctLabel.textContent = `${pct}%`;
+  });
+}
+
+// Build once at load
 renderAmbientUI();
 
 // Ambient Event Listeners
 ambientBtn.addEventListener("click", () => {
-  renderAmbientUI();
+  ambientEngine.setContext(getSharedAudioContext());
+  syncAmbientUIValues();
   ambientModal.classList.remove("hidden");
 });
 
@@ -608,11 +645,13 @@ ambientModal.addEventListener("click", (e) => {
 });
 
 ambientMasterMuteBtn.addEventListener("click", () => {
+  ambientEngine.setContext(getSharedAudioContext());
   ambientEngine.toggleMute();
   updateAmbientActiveState();
 });
 
 ambientMasterSlider.addEventListener("input", (e) => {
+  ambientEngine.setContext(getSharedAudioContext());
   const val = parseInt(e.target.value, 10);
   ambientMasterVolVal.textContent = `${val}%`;
   ambientEngine.setMasterVolume(val / 100);
@@ -625,12 +664,13 @@ ambientSyncToggle.addEventListener("change", () => {
 
 presetPills.forEach((pill) => {
   pill.addEventListener("click", () => {
+    ambientEngine.setContext(getSharedAudioContext());
     presetPills.forEach((p) => p.classList.remove("active"));
     if (pill.dataset.preset !== "clear-all") {
       pill.classList.add("active");
     }
     ambientEngine.applyPreset(pill.dataset.preset);
-    renderAmbientUI();
+    syncAmbientUIValues();
     updateAmbientActiveState();
   });
 });

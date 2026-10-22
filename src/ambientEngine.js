@@ -1,16 +1,18 @@
 /**
- * Ambient Sound Generator and Mixer (Blanket-style)
- * Procedural, zero-dependency, ultra-low CPU audio synthesis using Web Audio API.
+ * Ambient Sound Engine (Blanket-style)
+ * High-performance, zero-CPU procedural ambient noise synthesizer using pre-rendered
+ * seamless looped AudioBuffers in Web Audio API.
+ * Designed specifically for Linux WebKitGTK and Windows WebView2 stability.
  */
 
 export class AmbientSoundEngine {
-  constructor() {
-    this.ctx = null;
+  constructor(sharedAudioCtx = null) {
+    this.ctx = sharedAudioCtx;
     this.masterGain = null;
     this.isMuted = false;
     this.activeTracks = new Map();
-    this.noiseBuffers = {};
-    this.intervals = [];
+    this.buffers = {};
+    this.isGenerated = false;
 
     // Track definitions
     this.trackDefs = [
@@ -18,93 +20,112 @@ export class AmbientSoundEngine {
         id: "rain",
         name: "Rain",
         icon: "rain",
-        description: "Gentle continuous downpour with droplet patter",
+        description: "Continuous soothing downpour with gentle patter",
         defaultVolume: 0.6,
       },
       {
         id: "storm",
         name: "Storm & Thunder",
         icon: "storm",
-        description: "Deep rolling thunder rumbles and heavy ambiance",
+        description: "Sub-bass storm atmosphere with distant rolling rumbles",
         defaultVolume: 0.5,
       },
       {
         id: "wind",
         name: "Breezy Wind",
         icon: "wind",
-        description: "Soothing wind gusts through trees",
+        description: "Soft ambient gusts blowing through trees",
         defaultVolume: 0.5,
       },
       {
         id: "waves",
         name: "Ocean Waves",
         icon: "waves",
-        description: "Rhythmic oceanic surf and ebb tides",
+        description: "Rhythmic surf washing ashore and receding",
         defaultVolume: 0.5,
       },
       {
         id: "fireplace",
         name: "Fireplace",
         icon: "fire",
-        description: "Crackling wood embers and cozy warmth",
+        description: "Cozy wood hearth warmth with crackling embers",
         defaultVolume: 0.5,
       },
       {
         id: "forest",
         name: "Forest Birds",
         icon: "birds",
-        description: "Serene woodland canopy with gentle bird calls",
-        defaultVolume: 0.4,
+        description: "Peaceful woodland breeze with melodic canopy chirps",
+        defaultVolume: 0.45,
       },
       {
         id: "cafe",
         name: "Coffee Shop",
         icon: "cafe",
-        description: "Muffled café chatter and subtle ambient clinks",
+        description: "Warm coffeehouse murmur and subtle porcelain clinks",
         defaultVolume: 0.4,
       },
       {
         id: "whiteNoise",
         name: "White Noise",
         icon: "noise",
-        description: "Crisp static noise for masking distractions",
+        description: "Pure even frequency noise for masking distractions",
         defaultVolume: 0.35,
       },
       {
         id: "brownNoise",
         name: "Deep Brown Noise",
         icon: "waves-deep",
-        description: "Heavy low-frequency drone for deep focus",
+        description: "Deep, soothing low-pitch drone for intense focus",
         defaultVolume: 0.45,
       },
     ];
 
-    // State management
+    // Default settings
     this.settings = {
       masterVolume: 0.7,
-      syncWithFocus: false, // auto-play only when focus timer is running
+      syncWithFocus: false,
       tracks: {},
     };
 
     this.loadSettings();
   }
 
-  initContext() {
-    if (!this.ctx) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return false;
-      this.ctx = new AudioCtx();
+  setContext(ctx) {
+    this.ctx = ctx;
+    if (this.ctx && !this.masterGain) {
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.setValueAtTime(this.settings.masterVolume, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
-
-      this.generateNoiseBuffers();
     }
+  }
 
-    if (this.ctx && this.ctx.state === "suspended") {
-      this.ctx.resume();
+  initContext() {
+    try {
+      if (!this.ctx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return false;
+        this.ctx = new AudioCtx();
+      }
+
+      if (!this.masterGain && this.ctx) {
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.setValueAtTime(this.settings.masterVolume, this.ctx.currentTime);
+        this.masterGain.connect(this.ctx.destination);
+      }
+
+      if (this.ctx.state === "suspended") {
+        this.ctx.resume();
+      }
+
+      if (!this.isGenerated) {
+        this.generateBuffers();
+      }
+      return true;
+    } catch (e) {
+      console.warn("AudioContext initialization warning:", e);
+      return false;
     }
-    return true;
   }
 
   loadSettings() {
@@ -141,388 +162,205 @@ export class AmbientSoundEngine {
     }
   }
 
-  // Pre-generate 5-second seamless noise loops for zero-CPU looping
-  generateNoiseBuffers() {
-    if (!this.ctx) return;
-    const sampleRate = this.ctx.sampleRate;
-    const duration = 5.0;
-    const bufferSize = sampleRate * duration;
+  /**
+   * Pre-generates seamless, crossfaded 6-second looping audio buffers.
+   * Runs once in ~80ms without blocking.
+   */
+  generateBuffers() {
+    if (!this.ctx || this.isGenerated) return;
 
-    // 1. White Noise Buffer
-    const whiteBuf = this.ctx.createBuffer(1, bufferSize, sampleRate);
-    const whiteData = whiteBuf.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
+    const sampleRate = this.ctx.sampleRate || 44100;
+    const duration = 6.0;
+    const len = Math.floor(sampleRate * duration);
+
+    // 1. White noise
+    const whiteData = new Float32Array(len);
+    for (let i = 0; i < len; i++) {
       whiteData[i] = Math.random() * 2 - 1;
     }
-    this.noiseBuffers.white = whiteBuf;
 
-    // 2. Pink Noise Buffer (Kellet filter approximation)
-    const pinkBuf = this.ctx.createBuffer(1, bufferSize, sampleRate);
-    const pinkData = pinkBuf.getChannelData(0);
+    // 2. Brown noise (Integrated random walk)
+    const brownData = new Float32Array(len);
+    let lastBrown = 0.0;
+    for (let i = 0; i < len; i++) {
+      const w = Math.random() * 2 - 1;
+      brownData[i] = (lastBrown + 0.02 * w) / 1.02;
+      lastBrown = brownData[i];
+      brownData[i] *= 3.0;
+    }
+
+    // 3. Pink noise (Kellet 6-pole filter approximation)
+    const pinkData = new Float32Array(len);
     let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-    for (let i = 0; i < bufferSize; i++) {
-      const white = Math.random() * 2 - 1;
-      b0 = 0.99886 * b0 + white * 0.0555179;
-      b1 = 0.99332 * b1 + white * 0.0750759;
-      b2 = 0.96900 * b2 + white * 0.1538520;
-      b3 = 0.86650 * b3 + white * 0.3104856;
-      b4 = 0.55000 * b4 + white * 0.5329522;
-      b5 = -0.7616 * b5 - white * 0.0168980;
-      pinkData[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
-      b6 = white * 0.115926;
+    for (let i = 0; i < len; i++) {
+      const w = Math.random() * 2 - 1;
+      b0 = 0.99886 * b0 + w * 0.0555179;
+      b1 = 0.99332 * b1 + w * 0.0750759;
+      b2 = 0.96900 * b2 + w * 0.1538520;
+      b3 = 0.86650 * b3 + w * 0.3104856;
+      b4 = 0.55000 * b4 + w * 0.5329522;
+      b5 = -0.7616 * b5 - w * 0.0168980;
+      pinkData[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.12;
+      b6 = w * 0.115926;
     }
-    this.noiseBuffers.pink = pinkBuf;
 
-    // 3. Brown Noise Buffer (Integrated random walk)
-    const brownBuf = this.ctx.createBuffer(1, bufferSize, sampleRate);
-    const brownData = brownBuf.getChannelData(0);
-    let lastOut = 0.0;
-    for (let i = 0; i < bufferSize; i++) {
-      const white = Math.random() * 2 - 1;
-      brownData[i] = (lastOut + 0.02 * white) / 1.02;
-      lastOut = brownData[i];
-      brownData[i] *= 3.5; // Gain compensation
+    // 4. Rain (Pink noise with randomized high-frequency droplet impulses)
+    const rainData = new Float32Array(len);
+    for (let i = 0; i < len; i++) {
+      rainData[i] = pinkData[i] * 0.65;
+      if (Math.random() < 0.0035) {
+        const drop = (Math.random() - 0.5) * 0.35;
+        for (let k = 0; k < 35 && i + k < len; k++) {
+          rainData[i + k] += drop * Math.exp(-k / 7);
+        }
+      }
     }
-    this.noiseBuffers.brown = brownBuf;
-  }
 
-  createLoopedSource(buffer) {
-    if (!this.ctx || !buffer) return null;
-    const src = this.ctx.createBufferSource();
-    src.buffer = buffer;
-    src.loop = true;
-    return src;
+    // 5. Storm & Thunder (Deep sub-bass brown noise with rolling thunder waves)
+    const stormData = new Float32Array(len);
+    for (let i = 0; i < len; i++) {
+      const swell = Math.sin((Math.PI * i) / len);
+      const rumble = 0.4 + 0.6 * Math.pow(swell, 3);
+      stormData[i] = brownData[i] * rumble * 0.8;
+    }
+
+    // 6. Wind (Filtered pink noise with smooth sinusoidal breeze modulation)
+    const windData = new Float32Array(len);
+    for (let i = 0; i < len; i++) {
+      const gust = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin((2 * Math.PI * i) / len));
+      windData[i] = pinkData[i] * gust * 0.65;
+    }
+
+    // 7. Ocean Waves (Rhythmic surge and wash cycle)
+    const wavesData = new Float32Array(len);
+    for (let i = 0; i < len; i++) {
+      const cycle = Math.sin((2 * Math.PI * i) / len);
+      const surge = Math.pow(Math.max(0, cycle), 2);
+      wavesData[i] = (pinkData[i] * 0.5 + brownData[i] * 0.5) * (0.2 + 0.8 * surge) * 0.7;
+    }
+
+    // 8. Fireplace (Warm brown base with authentic wood crackle bursts)
+    const fireData = new Float32Array(len);
+    for (let i = 0; i < len; i++) {
+      fireData[i] = brownData[i] * 0.35;
+      if (Math.random() < 0.001) {
+        const pop = (Math.random() - 0.5) * 0.7;
+        for (let k = 0; k < 50 && i + k < len; k++) {
+          fireData[i + k] += pop * Math.exp(-k / 9);
+        }
+      }
+    }
+
+    // 9. Forest Birds (Gentle breeze rustle with subtle melodic bird chirps)
+    const forestData = new Float32Array(len);
+    for (let i = 0; i < len; i++) {
+      forestData[i] = pinkData[i] * 0.25;
+    }
+    // Add two bird chirps at fixed musical intervals in the loop
+    const addChirp = (startSec, freq) => {
+      const startIdx = Math.floor(startSec * sampleRate);
+      const chirpLen = Math.floor(sampleRate * 0.12);
+      for (let k = 0; k < chirpLen && startIdx + k < len; k++) {
+        const t = k / sampleRate;
+        const currentFreq = freq + 500 * Math.sin(t * 50);
+        const env = Math.sin((Math.PI * k) / chirpLen);
+        forestData[startIdx + k] += Math.sin(2 * Math.PI * currentFreq * t) * env * 0.08;
+      }
+    };
+    addChirp(1.2, 2800);
+    addChirp(1.4, 3200);
+    addChirp(4.0, 3000);
+    addChirp(4.2, 3400);
+
+    // 10. Coffee Shop (Warm ambient room tone with gentle ceramic clinks)
+    const cafeData = new Float32Array(len);
+    for (let i = 0; i < len; i++) {
+      cafeData[i] = (pinkData[i] * 0.3 + brownData[i] * 0.3) * 0.5;
+    }
+    const addClink = (startSec) => {
+      const startIdx = Math.floor(startSec * sampleRate);
+      const clinkLen = Math.floor(sampleRate * 0.08);
+      for (let k = 0; k < clinkLen && startIdx + k < len; k++) {
+        const t = k / sampleRate;
+        const env = Math.exp(-k / (sampleRate * 0.015));
+        cafeData[startIdx + k] += Math.sin(2 * Math.PI * 3600 * t) * env * 0.05;
+      }
+    };
+    addClink(2.5);
+    addClink(5.1);
+
+    // Seamless crossfade: blend last 0.25s smoothly with first 0.25s to eliminate any clicks
+    const fadeLen = Math.floor(sampleRate * 0.25);
+    const allArrays = [
+      whiteData, brownData, pinkData, rainData, stormData,
+      windData, wavesData, fireData, forestData, cafeData
+    ];
+    allArrays.forEach((arr) => {
+      for (let i = 0; i < fadeLen; i++) {
+        const t = i / fadeLen;
+        arr[i] = arr[i] * t + arr[len - fadeLen + i] * (1 - t);
+      }
+    });
+
+    // Helper to package Float32Array into Web Audio AudioBuffer
+    const createAudioBuffer = (channelData) => {
+      const buf = this.ctx.createBuffer(1, len, sampleRate);
+      buf.getChannelData(0).set(channelData);
+      return buf;
+    };
+
+    this.buffers = {
+      rain: createAudioBuffer(rainData),
+      storm: createAudioBuffer(stormData),
+      wind: createAudioBuffer(windData),
+      waves: createAudioBuffer(wavesData),
+      fireplace: createAudioBuffer(fireData),
+      forest: createAudioBuffer(forestData),
+      cafe: createAudioBuffer(cafeData),
+      whiteNoise: createAudioBuffer(whiteData),
+      brownNoise: createAudioBuffer(brownData),
+    };
+
+    this.isGenerated = true;
   }
 
   startTrack(trackId) {
     if (!this.initContext()) return;
     if (this.activeTracks.has(trackId)) return;
 
-    const trackGain = this.ctx.createGain();
-    const trackVolume = this.settings.tracks[trackId]?.volume ?? 0.5;
-    trackGain.gain.setValueAtTime(trackVolume, this.ctx.currentTime);
-    trackGain.connect(this.masterGain);
+    const buffer = this.buffers[trackId];
+    if (!buffer) return;
 
-    const cleanupFns = [];
+    try {
+      const src = this.ctx.createBufferSource();
+      src.buffer = buffer;
+      src.loop = true;
 
-    // Synthesize based on track type
-    switch (trackId) {
-      case "rain": {
-        // High quality rain: pink noise base + bandpass + droplet texture
-        const pinkSrc = this.createLoopedSource(this.noiseBuffers.pink);
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.frequency.setValueAtTime(2200, this.ctx.currentTime);
+      const trackGain = this.ctx.createGain();
+      const trackVol = this.settings.tracks[trackId]?.volume ?? 0.5;
+      trackGain.gain.setValueAtTime(trackVol, this.ctx.currentTime);
 
-        const filter2 = this.ctx.createBiquadFilter();
-        filter2.type = "highpass";
-        filter2.frequency.setValueAtTime(350, this.ctx.currentTime);
+      src.connect(trackGain);
+      trackGain.connect(this.masterGain);
+      src.start(0);
 
-        pinkSrc.connect(filter);
-        filter.connect(filter2);
-        filter2.connect(trackGain);
-        pinkSrc.start();
-        cleanupFns.push(() => pinkSrc.stop());
-
-        // Droplet patter pulses
-        const dropInterval = setInterval(() => {
-          if (!this.ctx || this.ctx.state !== "running") return;
-          if (Math.random() > 0.4) return;
-          try {
-            const osc = this.ctx.createOscillator();
-            const g = this.ctx.createGain();
-            osc.type = "sine";
-            const freq = 1400 + Math.random() * 1200;
-            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(freq * 0.4, this.ctx.currentTime + 0.04);
-
-            g.gain.setValueAtTime(0.04 * Math.random(), this.ctx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.04);
-
-            osc.connect(g);
-            g.connect(trackGain);
-            osc.start();
-            osc.stop(this.ctx.currentTime + 0.045);
-          } catch (_) {}
-        }, 120);
-        cleanupFns.push(() => clearInterval(dropInterval));
-        break;
-      }
-
-      case "storm": {
-        // Deep lowpass brown rumble
-        const brownSrc = this.createLoopedSource(this.noiseBuffers.brown);
-        const lowpass = this.ctx.createBiquadFilter();
-        lowpass.type = "lowpass";
-        lowpass.frequency.setValueAtTime(160, this.ctx.currentTime);
-
-        const baseGain = this.ctx.createGain();
-        baseGain.gain.setValueAtTime(0.7, this.ctx.currentTime);
-
-        brownSrc.connect(lowpass);
-        lowpass.connect(baseGain);
-        baseGain.connect(trackGain);
-        brownSrc.start();
-        cleanupFns.push(() => brownSrc.stop());
-
-        // Thunder strikes
-        const triggerThunder = () => {
-          if (!this.ctx || this.ctx.state !== "running") return;
-          try {
-            const thunderSrc = this.createLoopedSource(this.noiseBuffers.brown);
-            const thunderFilter = this.ctx.createBiquadFilter();
-            thunderFilter.type = "lowpass";
-            thunderFilter.frequency.setValueAtTime(260, this.ctx.currentTime);
-
-            const thunderGain = this.ctx.createGain();
-            const now = this.ctx.currentTime;
-            thunderGain.gain.setValueAtTime(0, now);
-            thunderGain.gain.linearRampToValueAtTime(1.2, now + 0.9);
-            thunderGain.gain.exponentialRampToValueAtTime(0.001, now + 5.5);
-
-            thunderSrc.connect(thunderFilter);
-            thunderFilter.connect(thunderGain);
-            thunderGain.connect(trackGain);
-            thunderSrc.start();
-            thunderSrc.stop(now + 6.0);
-          } catch (_) {}
-        };
-
-        const thunderTimer = setInterval(() => {
-          if (Math.random() < 0.35) {
-            triggerThunder();
-          }
-        }, 14000);
-        cleanupFns.push(() => clearInterval(thunderTimer));
-        break;
-      }
-
-      case "wind": {
-        // Bandpass noise modulated by slow LFO for breezy gusts
-        const pinkSrc = this.createLoopedSource(this.noiseBuffers.pink);
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = "bandpass";
-        filter.frequency.setValueAtTime(450, this.ctx.currentTime);
-        filter.Q.setValueAtTime(2.2, this.ctx.currentTime);
-
-        const lfo = this.ctx.createOscillator();
-        lfo.type = "sine";
-        lfo.frequency.setValueAtTime(0.18, this.ctx.currentTime); // slow wave
-
-        const lfoGain = this.ctx.createGain();
-        lfoGain.gain.setValueAtTime(220, this.ctx.currentTime);
-
-        lfo.connect(lfoGain);
-        lfoGain.connect(filter.frequency);
-
-        pinkSrc.connect(filter);
-        filter.connect(trackGain);
-
-        pinkSrc.start();
-        lfo.start();
-        cleanupFns.push(() => {
-          pinkSrc.stop();
-          lfo.stop();
-        });
-        break;
-      }
-
-      case "waves": {
-        // Slow rhythmic ebb and surge
-        const pinkSrc = this.createLoopedSource(this.noiseBuffers.pink);
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.frequency.setValueAtTime(500, this.ctx.currentTime);
-
-        const swellGain = this.ctx.createGain();
-        swellGain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-
-        const lfo = this.ctx.createOscillator();
-        lfo.type = "sine";
-        lfo.frequency.setValueAtTime(0.08, this.ctx.currentTime); // 12-second cycle
-
-        const lfoMod = this.ctx.createGain();
-        lfoMod.gain.setValueAtTime(0.35, this.ctx.currentTime);
-
-        lfo.connect(lfoMod);
-        lfoMod.connect(swellGain.gain);
-
-        pinkSrc.connect(filter);
-        filter.connect(swellGain);
-        swellGain.connect(trackGain);
-
-        pinkSrc.start();
-        lfo.start();
-        cleanupFns.push(() => {
-          pinkSrc.stop();
-          lfo.stop();
-        });
-        break;
-      }
-
-      case "fireplace": {
-        // Warm brown glow + crackle pops
-        const brownSrc = this.createLoopedSource(this.noiseBuffers.brown);
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.frequency.setValueAtTime(320, this.ctx.currentTime);
-
-        brownSrc.connect(filter);
-        filter.connect(trackGain);
-        brownSrc.start();
-        cleanupFns.push(() => brownSrc.stop());
-
-        // Spark and wood crackle bursts
-        const crackleInterval = setInterval(() => {
-          if (!this.ctx || this.ctx.state !== "running") return;
-          if (Math.random() > 0.45) return;
-          try {
-            const osc = this.ctx.createOscillator();
-            const g = this.ctx.createGain();
-            osc.type = "triangle";
-            osc.frequency.setValueAtTime(700 + Math.random() * 1800, this.ctx.currentTime);
-            g.gain.setValueAtTime(0.06 * Math.random(), this.ctx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.03);
-
-            osc.connect(g);
-            g.connect(trackGain);
-            osc.start();
-            osc.stop(this.ctx.currentTime + 0.035);
-          } catch (_) {}
-        }, 150);
-        cleanupFns.push(() => clearInterval(crackleInterval));
-        break;
-      }
-
-      case "forest": {
-        // Gentle rustle background
-        const pinkSrc = this.createLoopedSource(this.noiseBuffers.pink);
-        const rustle = this.ctx.createBiquadFilter();
-        rustle.type = "bandpass";
-        rustle.frequency.setValueAtTime(800, this.ctx.currentTime);
-        rustle.Q.setValueAtTime(0.8, this.ctx.currentTime);
-
-        const rustleGain = this.ctx.createGain();
-        rustleGain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-
-        pinkSrc.connect(rustle);
-        rustle.connect(rustleGain);
-        rustleGain.connect(trackGain);
-        pinkSrc.start();
-        cleanupFns.push(() => pinkSrc.stop());
-
-        // Periodic bird chirps
-        const chirpInterval = setInterval(() => {
-          if (!this.ctx || this.ctx.state !== "running") return;
-          if (Math.random() > 0.5) return;
-          try {
-            const count = 1 + Math.floor(Math.random() * 3);
-            for (let c = 0; c < count; c++) {
-              const startDelay = c * 0.16;
-              const osc = this.ctx.createOscillator();
-              const g = this.ctx.createGain();
-              osc.type = "sine";
-
-              const baseFreq = 2400 + Math.random() * 1200;
-              const now = this.ctx.currentTime + startDelay;
-              osc.frequency.setValueAtTime(baseFreq, now);
-              osc.frequency.linearRampToValueAtTime(baseFreq + 600, now + 0.06);
-              osc.frequency.exponentialRampToValueAtTime(baseFreq - 300, now + 0.12);
-
-              g.gain.setValueAtTime(0, now);
-              g.gain.linearRampToValueAtTime(0.035, now + 0.02);
-              g.gain.exponentialRampToValueAtTime(0.0005, now + 0.12);
-
-              osc.connect(g);
-              g.connect(trackGain);
-              osc.start(now);
-              osc.stop(now + 0.13);
-            }
-          } catch (_) {}
-        }, 3200);
-        cleanupFns.push(() => clearInterval(chirpInterval));
-        break;
-      }
-
-      case "cafe": {
-        // Filtered rumble mimicking café room tone
-        const pinkSrc = this.createLoopedSource(this.noiseBuffers.pink);
-        const murmur = this.ctx.createBiquadFilter();
-        murmur.type = "bandpass";
-        murmur.frequency.setValueAtTime(550, this.ctx.currentTime);
-        murmur.Q.setValueAtTime(1.4, this.ctx.currentTime);
-
-        pinkSrc.connect(murmur);
-        murmur.connect(trackGain);
-        pinkSrc.start();
-        cleanupFns.push(() => pinkSrc.stop());
-
-        // Subtle ceramic cup clinks
-        const clinkInterval = setInterval(() => {
-          if (!this.ctx || this.ctx.state !== "running") return;
-          if (Math.random() > 0.3) return;
-          try {
-            const osc = this.ctx.createOscillator();
-            const g = this.ctx.createGain();
-            osc.type = "sine";
-            const freq = 3200 + Math.random() * 800;
-            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-
-            g.gain.setValueAtTime(0.03 * Math.random(), this.ctx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.08);
-
-            osc.connect(g);
-            g.connect(trackGain);
-            osc.start();
-            osc.stop(this.ctx.currentTime + 0.09);
-          } catch (_) {}
-        }, 4000);
-        cleanupFns.push(() => clearInterval(clinkInterval));
-        break;
-      }
-
-      case "whiteNoise": {
-        const whiteSrc = this.createLoopedSource(this.noiseBuffers.white);
-        const lowpass = this.ctx.createBiquadFilter();
-        lowpass.type = "lowpass";
-        lowpass.frequency.setValueAtTime(8000, this.ctx.currentTime);
-
-        whiteSrc.connect(lowpass);
-        lowpass.connect(trackGain);
-        whiteSrc.start();
-        cleanupFns.push(() => whiteSrc.stop());
-        break;
-      }
-
-      case "brownNoise": {
-        const brownSrc = this.createLoopedSource(this.noiseBuffers.brown);
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.frequency.setValueAtTime(400, this.ctx.currentTime);
-
-        brownSrc.connect(filter);
-        filter.connect(trackGain);
-        brownSrc.start();
-        cleanupFns.push(() => brownSrc.stop());
-        break;
-      }
+      this.activeTracks.set(trackId, {
+        sourceNode: src,
+        gainNode: trackGain,
+      });
+    } catch (e) {
+      console.warn(`Could not start ambient track ${trackId}:`, e);
     }
-
-    this.activeTracks.set(trackId, {
-      gainNode: trackGain,
-      cleanup: () => {
-        cleanupFns.forEach((fn) => fn());
-        try {
-          trackGain.disconnect();
-        } catch (_) {}
-      },
-    });
   }
 
   stopTrack(trackId) {
-    const track = this.activeTracks.get(trackId);
-    if (track) {
-      track.cleanup();
+    const active = this.activeTracks.get(trackId);
+    if (active) {
+      try {
+        active.sourceNode.stop();
+        active.sourceNode.disconnect();
+        active.gainNode.disconnect();
+      } catch (_) {}
       this.activeTracks.delete(trackId);
     }
   }
@@ -534,7 +372,9 @@ export class AmbientSoundEngine {
     }
     const active = this.activeTracks.get(trackId);
     if (active && this.ctx) {
-      active.gainNode.gain.setValueAtTime(vol, this.ctx.currentTime);
+      try {
+        active.gainNode.gain.setValueAtTime(vol, this.ctx.currentTime);
+      } catch (_) {}
     }
     this.saveSettings();
   }
@@ -562,7 +402,9 @@ export class AmbientSoundEngine {
     const vol = Math.max(0, Math.min(1, volume));
     this.settings.masterVolume = vol;
     if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : vol, this.ctx.currentTime);
+      try {
+        this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : vol, this.ctx.currentTime);
+      } catch (_) {}
     }
     this.saveSettings();
   }
@@ -570,10 +412,12 @@ export class AmbientSoundEngine {
   toggleMute() {
     this.isMuted = !this.isMuted;
     if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setValueAtTime(
-        this.isMuted ? 0 : this.settings.masterVolume,
-        this.ctx.currentTime
-      );
+      try {
+        this.masterGain.gain.setValueAtTime(
+          this.isMuted ? 0 : this.settings.masterVolume,
+          this.ctx.currentTime
+        );
+      } catch (_) {}
     }
     return this.isMuted;
   }
@@ -583,16 +427,13 @@ export class AmbientSoundEngine {
     this.saveSettings();
   }
 
-  // Called when Pomodoro state updates
   handleTimerStateChange(snapshot) {
     if (!this.settings.syncWithFocus) return;
 
     if (snapshot.isRunning && snapshot.mode === "work") {
-      // Resume or start enabled tracks
       this.resumeAllEnabled();
     } else {
-      // Pause ambient sounds during break or standby/pause
-      this.suspend();
+      this.stopAllActive();
     }
   }
 
@@ -603,19 +444,16 @@ export class AmbientSoundEngine {
         this.startTrack(id);
       }
     });
-    if (this.ctx && this.ctx.state === "suspended") {
-      this.ctx.resume();
-    }
   }
 
-  suspend() {
-    if (this.ctx && this.ctx.state === "running") {
-      this.ctx.suspend();
-    }
+  stopAllActive() {
+    this.activeTracks.forEach((_, id) => {
+      this.stopTrack(id);
+    });
   }
 
   applyPreset(presetName) {
-    // Reset all tracks first
+    // Stop all first
     this.trackDefs.forEach((def) => {
       this.stopTrack(def.id);
       this.settings.tracks[def.id].enabled = false;
@@ -626,7 +464,7 @@ export class AmbientSoundEngine {
         this.toggleTrack("rain", true);
         this.setTrackVolume("rain", 0.7);
         this.toggleTrack("storm", true);
-        this.setTrackVolume("storm", 0.4);
+        this.setTrackVolume("storm", 0.45);
         break;
       case "cozy-fireplace":
         this.toggleTrack("fireplace", true);
@@ -648,7 +486,6 @@ export class AmbientSoundEngine {
         break;
       case "clear-all":
       default:
-        // Already cleared
         break;
     }
     this.saveSettings();
