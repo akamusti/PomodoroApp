@@ -832,6 +832,9 @@ body {
 }
 
 .preset-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   background: var(--bg-surface);
   border: 1px solid var(--border-hairline);
   border-radius: 6px;
@@ -841,6 +844,16 @@ body {
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.15s ease;
+}
+
+.preset-pill svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.preset-pill:hover svg,
+.preset-pill.active svg {
+  opacity: 1;
 }
 
 .preset-pill:hover {
