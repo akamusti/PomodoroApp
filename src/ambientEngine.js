@@ -1,9 +1,10 @@
 /**
  * Ambient Sound Engine (Blanket-style)
  *
- * In the Tauri desktop app (Linux & Windows), all procedural synthesis and
- * real-time audio mixing runs natively in the Rust backend (`src-tauri/src/audio.rs`)
- * via PulseAudio/PipeWire/ALSA on Linux and WinMM on Windows.
+ * In the Tauri desktop app (Linux & Windows), bundled field recordings, noise
+ * synthesis and real-time audio mixing all run natively in the Rust backend
+ * (`src-tauri/src/audio.rs`) via PulseAudio/PipeWire/ALSA on Linux and WinMM on
+ * Windows.
  *
  * This completely avoids WebKitGTK's GStreamer WebAudio/HTMLMediaElement
  * pipeline, preventing WebKitWebProcess SIGABRT crashes inside AppImages and
@@ -22,54 +23,56 @@ export class AmbientSoundEngine {
     this.isTimerFocusing = false;
 
     // Track definitions
+    // Nature tracks are real field recordings bundled as seamless Ogg Vorbis
+    // loops (see src-tauri/assets/ambient). The noise tracks stay procedural.
     this.trackDefs = [
       {
         id: "rain",
         name: "Rain",
         icon: "rain",
-        description: "Continuous soothing downpour with gentle patter",
+        description: "Steady rainfall recorded outdoors",
         defaultVolume: 0.6,
       },
       {
         id: "storm",
         name: "Storm & Thunder",
         icon: "storm",
-        description: "Sub-bass storm atmosphere with distant rolling rumbles",
+        description: "Distant thunder rolling over a steady downpour",
         defaultVolume: 0.5,
       },
       {
         id: "wind",
         name: "Breezy Wind",
         icon: "wind",
-        description: "Soft ambient gusts blowing through trees",
+        description: "Howling wind sweeping across open highlands",
         defaultVolume: 0.5,
       },
       {
         id: "waves",
         name: "Ocean Waves",
         icon: "waves",
-        description: "Rhythmic surf washing ashore and receding",
+        description: "Ocean surf breaking and receding on the coast",
         defaultVolume: 0.5,
       },
       {
         id: "fireplace",
         name: "Fireplace",
         icon: "fire",
-        description: "Cozy wood hearth warmth with crackling embers",
-        defaultVolume: 0.5,
+        description: "Cozy wood fire crackling with warm embers",
+        defaultVolume: 0.65,
       },
       {
         id: "forest",
         name: "Forest Birds",
         icon: "birds",
-        description: "Peaceful woodland breeze with melodic canopy chirps",
+        description: "Songbirds chirping in a quiet woodland",
         defaultVolume: 0.45,
       },
       {
         id: "cafe",
         name: "Coffee Shop",
         icon: "cafe",
-        description: "Warm coffeehouse murmur and subtle porcelain clinks",
+        description: "Coffeehouse murmur with cups and soft chatter",
         defaultVolume: 0.4,
       },
       {

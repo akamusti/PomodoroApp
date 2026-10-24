@@ -6,6 +6,8 @@ use std::thread;
 const SAMPLE_RATE: u32 = 44100;
 const LOOP_SECONDS: f32 = 8.0;
 const CHUNK_FRAMES: usize = 882; // 20ms at 44.1 kHz
+/// Crossfade applied to the bundled ambient recordings so they loop seamlessly.
+const CROSSFADE_SECONDS: f32 = 1.0;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct TrackConfig {
@@ -121,29 +123,123 @@ impl Rng {
         let unit = (r >> 40) as f32 * (1.0 / (1u64 << 24) as f32);
         unit * 2.0 - 1.0
     }
+}
 
-    #[inline]
-    fn next_f32_unit(&mut self) -> f32 {
-        (self.next_f32_signed() + 1.0) * 0.5
+/// Blends the tail of the buffer into its head and drops the tail so the
+/// resulting samples can be looped without an audible seam.
+fn make_seamless(mut arr: Vec<f32>, fade_len: usize) -> Vec<f32> {
+    let len = arr.len();
+    if fade_len == 0 || len <= fade_len * 2 {
+        return arr;
+    }
+    let loop_len = len - fade_len;
+    for i in 0..fade_len {
+        let t = i as f32 / fade_len as f32;
+        arr[i] = arr[i] * t + arr[loop_len + i] * (1.0 - t);
+    }
+    arr.truncate(loop_len);
+    arr
+}
+
+fn crossfade_frames() -> usize {
+    (SAMPLE_RATE as f32 * CROSSFADE_SECONDS) as usize
+}
+
+fn linear_resample(input: &[f32], from_rate: u32, to_rate: u32) -> Vec<f32> {
+    if from_rate == to_rate || input.is_empty() {
+        return input.to_vec();
+    }
+    let ratio = from_rate as f64 / to_rate as f64;
+    let out_len = ((input.len() as f64) / ratio).floor() as usize;
+    let mut out = Vec::with_capacity(out_len);
+    for i in 0..out_len {
+        let src_pos = i as f64 * ratio;
+        let idx = src_pos.floor() as usize;
+        let frac = (src_pos - idx as f64) as f32;
+        let a = input[idx.min(input.len() - 1)];
+        let b = input[(idx + 1).min(input.len() - 1)];
+        out.push(a + (b - a) * frac);
+    }
+    out
+}
+
+/// Decodes a mono Ogg Vorbis buffer into f32 samples at `SAMPLE_RATE`.
+fn decode_mono_vorbis(bytes: &[u8]) -> Option<Vec<f32>> {
+    let mut reader =
+        lewton::inside_ogg::OggStreamReader::new(std::io::Cursor::new(bytes)).ok()?;
+    let channels = reader.ident_hdr.audio_channels as usize;
+    let rate = reader.ident_hdr.audio_sample_rate;
+
+    let mut mono: Vec<f32> = Vec::new();
+    loop {
+        match reader.read_dec_packet_itl() {
+            Ok(Some(packet)) => {
+                if packet.is_empty() {
+                    continue;
+                }
+                if channels <= 1 {
+                    mono.extend(packet.iter().map(|s| *s as f32 / 32768.0));
+                } else {
+                    mono.extend(packet.chunks_exact(channels).map(|frame| {
+                        let sum: i32 = frame.iter().map(|s| *s as i32).sum();
+                        (sum as f32 / channels as f32) / 32768.0
+                    }));
+                }
+            }
+            Ok(None) => break,
+            Err(err) => {
+                log::warn!("ambient: failed while decoding bundled track: {err}");
+                return None;
+            }
+        }
+    }
+
+    if mono.is_empty() {
+        return None;
+    }
+
+    if rate != SAMPLE_RATE {
+        Some(linear_resample(&mono, rate, SAMPLE_RATE))
+    } else {
+        Some(mono)
     }
 }
 
-fn generate_track_banks() -> HashMap<String, Vec<f32>> {
-    let sr = SAMPLE_RATE as usize;
+/// Loads one of the bundled field recordings and turns it into a seamless loop.
+///
+/// The assets are mono Ogg Vorbis files that already contain an extra
+/// `CROSSFADE_SECONDS` tail used to blend the loop boundary.
+fn load_bundled_track(track_id: &str) -> Option<Vec<f32>> {
+    let bytes: &[u8] = match track_id {
+        "rain" => include_bytes!("../assets/ambient/rain.ogg"),
+        "storm" => include_bytes!("../assets/ambient/storm.ogg"),
+        "wind" => include_bytes!("../assets/ambient/wind.ogg"),
+        "waves" => include_bytes!("../assets/ambient/waves.ogg"),
+        "fireplace" => include_bytes!("../assets/ambient/fireplace.ogg"),
+        "forest" => include_bytes!("../assets/ambient/forest.ogg"),
+        "cafe" => include_bytes!("../assets/ambient/cafe.ogg"),
+        _ => return None,
+    };
+
+    let samples = decode_mono_vorbis(bytes)?;
+    Some(make_seamless(samples, crossfade_frames()))
+}
+
+/// Procedurally generated noise banks. Everything else is a real recording
+/// loaded on demand from `assets/ambient`.
+fn generate_procedural_banks() -> HashMap<String, Vec<f32>> {
     let len = (SAMPLE_RATE as f32 * LOOP_SECONDS) as usize;
-    let fade_len = sr / 4; // 0.25s crossfade
-    let loop_len = len - fade_len;
-    let pi = std::f32::consts::PI;
+    let fade_len = SAMPLE_RATE as usize / 4; // 0.25s crossfade
 
     let mut rng = Rng::new(0xC0FFEE_1234_5678);
 
-    // 1. White noise
+    // White noise
     let mut white = vec![0.0f32; len];
     for s in white.iter_mut() {
         *s = rng.next_f32_signed() * 0.35;
     }
 
-    // 2. Brown noise
+    // Brown noise
     let mut brown = vec![0.0f32; len];
     let mut last_brown = 0.0f32;
     for s in brown.iter_mut() {
@@ -152,134 +248,9 @@ fn generate_track_banks() -> HashMap<String, Vec<f32>> {
         *s = (last_brown * 3.0).clamp(-0.95, 0.95);
     }
 
-    // 3. Pink noise (Kellet 6-pole filter)
-    let mut pink = vec![0.0f32; len];
-    let (mut b0, mut b1, mut b2, mut b3, mut b4, mut b5, mut b6) =
-        (0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32);
-    for s in pink.iter_mut() {
-        let w = rng.next_f32_signed();
-        b0 = 0.99886 * b0 + w * 0.0555179;
-        b1 = 0.99332 * b1 + w * 0.0750759;
-        b2 = 0.96900 * b2 + w * 0.1538520;
-        b3 = 0.86650 * b3 + w * 0.3104856;
-        b4 = 0.55000 * b4 + w * 0.5329522;
-        b5 = -0.7616 * b5 - w * 0.0168980;
-        *s = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.12;
-        b6 = w * 0.115926;
-    }
-
-    // 4. Rain
-    let mut rain = vec![0.0f32; len];
-    for i in 0..len {
-        rain[i] += pink[i] * 0.65;
-        if rng.next_f32_unit() < 0.0035 {
-            let drop_amp = rng.next_f32_signed() * 0.18;
-            for k in 0..35 {
-                if i + k < len {
-                    rain[i + k] += drop_amp * (-(k as f32) / 7.0).exp();
-                }
-            }
-        }
-    }
-
-    // 5. Storm & Thunder
-    let mut storm = vec![0.0f32; len];
-    for i in 0..len {
-        let swell = (pi * i as f32 / len as f32).sin();
-        let rumble = 0.4 + 0.6 * swell.powi(3);
-        storm[i] = brown[i] * rumble * 0.85;
-    }
-
-    // 6. Wind
-    let mut wind = vec![0.0f32; len];
-    for i in 0..len {
-        let gust = 0.4 + 0.6 * (0.5 + 0.5 * (2.0 * pi * i as f32 / len as f32).sin());
-        wind[i] = pink[i] * gust * 0.65;
-    }
-
-    // 7. Ocean Waves
-    let mut waves = vec![0.0f32; len];
-    for i in 0..len {
-        let cycle = (2.0 * pi * i as f32 / len as f32).sin();
-        let surge = cycle.max(0.0).powi(2);
-        waves[i] = (pink[i] * 0.5 + brown[i] * 0.5) * (0.2 + 0.8 * surge) * 0.75;
-    }
-
-    // 8. Fireplace
-    let mut fire = vec![0.0f32; len];
-    for i in 0..len {
-        fire[i] += brown[i] * 0.35;
-        if rng.next_f32_unit() < 0.0012 {
-            let pop = rng.next_f32_signed() * 0.35;
-            for k in 0..50 {
-                if i + k < len {
-                    fire[i + k] += pop * (-(k as f32) / 9.0).exp();
-                }
-            }
-        }
-    }
-
-    // 9. Forest Birds
-    let mut forest = vec![0.0f32; len];
-    for i in 0..len {
-        forest[i] = pink[i] * 0.28;
-    }
-    let add_chirp = |buf: &mut [f32], start_sec: f32, freq: f32| {
-        let start_idx = (start_sec * SAMPLE_RATE as f32) as usize;
-        let chirp_len = (SAMPLE_RATE as f32 * 0.12) as usize;
-        for k in 0..chirp_len {
-            if start_idx + k < buf.len() {
-                let t = k as f32 / SAMPLE_RATE as f32;
-                let cur_freq = freq + 500.0 * (t * 50.0).sin();
-                let env = (pi * k as f32 / chirp_len as f32).sin();
-                buf[start_idx + k] += (2.0 * pi * cur_freq * t).sin() * env * 0.09;
-            }
-        }
-    };
-    add_chirp(&mut forest, 1.2, 2800.0);
-    add_chirp(&mut forest, 1.4, 3200.0);
-    add_chirp(&mut forest, 4.0, 3000.0);
-    add_chirp(&mut forest, 4.2, 3400.0);
-    add_chirp(&mut forest, 6.3, 2950.0);
-
-    // 10. Coffee Shop
-    let mut cafe = vec![0.0f32; len];
-    for i in 0..len {
-        cafe[i] = (pink[i] * 0.35 + brown[i] * 0.35) * 0.55;
-    }
-    let add_clink = |buf: &mut [f32], start_sec: f32, freq: f32| {
-        let start_idx = (start_sec * SAMPLE_RATE as f32) as usize;
-        let clink_len = (SAMPLE_RATE as f32 * 0.08) as usize;
-        for k in 0..clink_len {
-            if start_idx + k < buf.len() {
-                let t = k as f32 / SAMPLE_RATE as f32;
-                let env = (-(k as f32) / (SAMPLE_RATE as f32 * 0.015)).exp();
-                buf[start_idx + k] += (2.0 * pi * freq * t).sin() * env * 0.06;
-            }
-        }
-    };
-    add_clink(&mut cafe, 2.5, 3600.0);
-    add_clink(&mut cafe, 5.1, 3950.0);
-
-    let make_seamless = |mut arr: Vec<f32>| -> Vec<f32> {
-        for i in 0..fade_len {
-            let t = i as f32 / fade_len as f32;
-            arr[i] = arr[i] * t + arr[loop_len + i] * (1.0 - t);
-        }
-        arr.truncate(loop_len);
-        arr
-    };
-
     let mut banks = HashMap::new();
-    banks.insert("rain".into(), make_seamless(rain));
-    banks.insert("storm".into(), make_seamless(storm));
-    banks.insert("wind".into(), make_seamless(wind));
-    banks.insert("waves".into(), make_seamless(waves));
-    banks.insert("fireplace".into(), make_seamless(fire));
-    banks.insert("forest".into(), make_seamless(forest));
-    banks.insert("cafe".into(), make_seamless(cafe));
-    banks.insert("whiteNoise".into(), make_seamless(white));
-    banks.insert("brownNoise".into(), make_seamless(brown));
+    banks.insert("whiteNoise".into(), make_seamless(white, fade_len));
+    banks.insert("brownNoise".into(), make_seamless(brown, fade_len));
     banks
 }
 
@@ -330,7 +301,9 @@ fn synthesize_cue(kind: &str) -> Vec<f32> {
 }
 
 fn audio_worker_loop(shared: Arc<(Mutex<MixerState>, Condvar)>) {
-    let banks = generate_track_banks();
+    // Procedural banks are cheap and always available; the bundled recordings
+    // are decoded lazily the first time their track is enabled.
+    let mut banks = generate_procedural_banks();
     let mut sink: Option<Box<dyn PcmOutput>> = None;
     let mut pcm_buf = vec![0i16; CHUNK_FRAMES * 2]; // stereo interleaved
     let mut mix_buf = vec![0.0f32; CHUNK_FRAMES];
@@ -381,15 +354,27 @@ fn audio_worker_loop(shared: Arc<(Mutex<MixerState>, Condvar)>) {
                         .collect();
 
                     for (track_id, gain) in active_list {
-                        if let Some(bank) = banks.get(&track_id) {
-                            let bank_len = bank.len();
-                            let cursor = state.cursors.entry(track_id).or_insert(0);
-                            for sample in mix_buf.iter_mut() {
-                                *sample += bank[*cursor] * gain;
-                                *cursor += 1;
-                                if *cursor >= bank_len {
-                                    *cursor = 0;
+                        let bank = banks.entry(track_id.clone()).or_insert_with(|| {
+                            match load_bundled_track(&track_id) {
+                                Some(bank) => bank,
+                                None => {
+                                    log::warn!(
+                                        "ambient: no audio bank available for track '{track_id}'"
+                                    );
+                                    Vec::new()
                                 }
+                            }
+                        });
+                        if bank.is_empty() {
+                            continue;
+                        }
+                        let bank_len = bank.len();
+                        let cursor = state.cursors.entry(track_id).or_insert(0);
+                        for sample in mix_buf.iter_mut() {
+                            *sample += bank[*cursor] * gain;
+                            *cursor += 1;
+                            if *cursor >= bank_len {
+                                *cursor = 0;
                             }
                         }
                     }
@@ -1020,4 +1005,63 @@ mod windows_audio {
 #[cfg(not(any(target_os = "linux", target_os = "windows")))]
 fn open_platform_audio_output() -> Option<Box<dyn PcmOutput>> {
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::Command;
+
+    #[test]
+    fn bundled_ambient_tracks_decode() {
+        let tracks = [
+            "rain",
+            "storm",
+            "wind",
+            "waves",
+            "fireplace",
+            "forest",
+            "cafe",
+        ];
+        for id in tracks {
+            let bank = load_bundled_track(id).expect("bundled track should decode");
+            let seconds = bank.len() as f32 / SAMPLE_RATE as f32;
+            let peak = bank.iter().fold(0.0f32, |m, s| m.max(s.abs()));
+            let rms =
+                (bank.iter().map(|s| s * s).sum::<f32>() / bank.len() as f32).sqrt();
+
+            assert!(
+                (12.0..=40.0).contains(&seconds),
+                "{id}: unexpected loop length {seconds}s"
+            );
+            assert!(bank.iter().all(|s| s.is_finite()), "{id}: non-finite samples");
+            assert!((0.05..=1.0).contains(&peak), "{id}: peak {peak} out of range");
+            assert!((0.01..=0.6).contains(&rms), "{id}: rms {rms} out of range");
+            println!("{id}: {seconds:.1}s peak={peak:.3} rms={rms:.3}");
+        }
+    }
+
+    #[test]
+    #[ignore = "requires a running audio server (PulseAudio/PipeWire/ALSA)"]
+    fn enabled_track_opens_audio_output() {
+        let mut tracks = HashMap::new();
+        tracks.insert(
+            "rain".to_string(),
+            TrackConfig {
+                enabled: true,
+                volume: 1.0,
+            },
+        );
+        get_engine().update_ambient(tracks, 0.9, false);
+        thread::sleep(std::time::Duration::from_millis(1500));
+
+        let playing = ["pacat", "pw-cat", "aplay"].iter().any(|bin| {
+            Command::new("pgrep")
+                .args(["-x", bin])
+                .status()
+                .map(|status| status.success())
+                .unwrap_or(false)
+        });
+        assert!(playing, "no ambient audio stream was opened");
+    }
 }

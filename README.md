@@ -68,7 +68,7 @@ Compatible with almost all modern distributions (Fedora, Ubuntu, Arch Linux, Deb
 ## ✨ Features
 
 - **Cross-Platform Desktop Integration:** Native support for both **Linux** (GNOME, KDE Plasma, XFCE via AppIndicator/libnotify) and **Windows** (System Tray, Toast Notifications).
-- **Ambient Sounds (Blanket Mode):** Built-in procedural ambient noise synthesizer generating seamless audio loops. Play and mix soothing nature sounds (Rain, Storm & Thunder, Wind, Ocean Waves, Fireplace, Forest Birds, Coffee Shop, White & Deep Brown Noise) with individual volume sliders and quick presets (`B` shortcut). Zero CPU overhead, zero external audio dependencies.
+- **Ambient Sounds (Blanket Mode):** Hand-picked field recordings bundled as seamless loops (Rain, Storm & Thunder, Wind, Ocean Waves, Fireplace, Forest Birds, Coffee Shop) plus procedural White & Deep Brown Noise. Mix them with individual volume sliders and quick presets (`B` shortcut). All mixing runs natively in Rust with zero CPU overhead and zero external audio dependencies.
 - **Focus Session Sync:** Optional auto-sync to play ambient sounds only during active work periods and auto-pause during breaks.
 - **Minimalist & Distraction-free Dark UI:** Clean circular countdown animation with dynamic mode indicators (Focus, Short Break, Long Break).
 - **System Tray Integration:** Runs discreetly in your desktop tray. Minimize to tray on close to maintain your workflow without cluttering the taskbar.
