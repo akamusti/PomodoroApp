@@ -52,7 +52,8 @@ jobs:
             ## Pomodoro Desktop Release v__VERSION__
 
             ### What's New in v__VERSION__:
-            - **Ambient Sounds (Blanket Mode):** Built-in zero-CPU ambient noise mixer powered by Web Audio API. Play and mix soothing sounds (Rain, Storm & Thunder, Wind, Ocean Waves, Fireplace, Forest Birds, Coffee Shop, White & Deep Brown Noise) with individual volume sliders and quick presets (`B` shortcut).
+            - **Real Ambient Soundscapes:** Rain, Storm & Thunder, Breezy Wind, Ocean Waves, Fireplace, Forest Birds and Coffee Shop now use hand-picked field recordings bundled as seamless loops (all mixed natively in Rust with zero CPU overhead).
+            - **Endless Noise:** White Noise and Deep Brown Noise stay procedurally generated for artifact-free masking.
             - **Focus Session Sync:** Option to automatically play ambient sounds only during active focus intervals and auto-pause on breaks.
             - **Tactile Chronometer UI:** Hardware-inspired matte finish with a 60-tick precision SVG dial and status telemetry.
             - **Light & Dark Themes:** Warm carbon dark mode and tactile paper light mode (`T` shortcut).
@@ -62,6 +63,9 @@ jobs:
             - **Windows (`.exe`):** `Pomodoro_*_x64-setup.exe` (or standalone MSI installer).
             - **Linux AppImage:** Universal standalone binary for Fedora, Ubuntu, Arch, Debian, Mint.
             - **Linux DEB:** Native package for Debian, Ubuntu, Linux Mint.
+
+            ### Credits:
+            Ambient recordings are CC0 / CC BY 4.0 licensed. See `src-tauri/assets/ambient/ATTRIBUTION.md` in the repository for full attribution.
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
