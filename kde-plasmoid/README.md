@@ -10,12 +10,12 @@ You only need KDE Plasma 6; you do **not** need to clone this repository or buil
 
 ### Option A — download the ready-made package (recommended)
 
-Download [`io.github.akamusti.pomodoro.plasmoid`][latest-plasmoid] from the latest release and
+Download [`io.github.akamusti.pomodoro.plasmoid`][plasmoid-release] from the widget release and
 install it with one command:
 
 ```bash
 curl -fL -o ~/Downloads/io.github.akamusti.pomodoro.plasmoid \
-  https://github.com/akamusti/PomodoroApp/releases/latest/download/io.github.akamusti.pomodoro.plasmoid
+  https://github.com/akamusti/PomodoroApp/releases/download/plasmoid-v1.0.0/io.github.akamusti.pomodoro.plasmoid
 
 kpackagetool6 --type Plasma/Applet --install ~/Downloads/io.github.akamusti.pomodoro.plasmoid
 ```
@@ -23,7 +23,7 @@ kpackagetool6 --type Plasma/Applet --install ~/Downloads/io.github.akamusti.pomo
 Or install it without a terminal:
 
 1. Right-click the panel → **Enter Edit Mode** → **Add or Manage Widgets…**
-2. Open **Get New Widgets…** → **Install Widget From Local File…**
+2. Open **Get New…** → **Install Widget From Local File…**
 3. Pick the downloaded `.plasmoid` file, then drag **Pomodoro** from the list onto the panel.
 
 ### Option B — install from source
@@ -63,7 +63,7 @@ kpackagetool6 --type Plasma/Applet --remove io.github.akamusti.pomodoro
 - `notify-send` and `canberra-gtk-play` are optional; without them the widget still runs, it
   just cannot show desktop notifications or play the completion chime.
 
-[latest-plasmoid]: https://github.com/akamusti/PomodoroApp/releases/latest/download/io.github.akamusti.pomodoro.plasmoid
+[plasmoid-release]: https://github.com/akamusti/PomodoroApp/releases/tag/plasmoid-v1.0.0
 
 ## Features
 
@@ -104,7 +104,8 @@ contents/icons/                   Panel icons
 - Build the distributable archive: `../scripts/package-plasmoid.sh` (writes
   `dist/io.github.akamusti.pomodoro.plasmoid`)
 - Publish a release so the download links above keep working:
-  `gh release create plasmoid-v<version> dist/io.github.akamusti.pomodoro.plasmoid`
+  `gh release create plasmoid-v<version> dist/io.github.akamusti.pomodoro.plasmoid --latest=false`
+  (`--latest=false` keeps the desktop app release as the repository's latest release)
 - The installed package is a copy, so rerun the install script after editing the sources and
   restart the shell to pick up QML changes:
   `systemctl --user restart plasma-plasmashell.service`

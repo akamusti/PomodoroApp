@@ -97,11 +97,13 @@ also works when PomodoroApp itself is not running.
 
 You only need KDE Plasma 6 — no build step and no repository checkout required.
 
-**From the latest release (recommended):** download
-[`io.github.akamusti.pomodoro.plasmoid`](https://github.com/akamusti/PomodoroApp/releases/latest/download/io.github.akamusti.pomodoro.plasmoid) and install it either without a terminal
+**From the widget release (recommended):** download
+[`io.github.akamusti.pomodoro.plasmoid`](https://github.com/akamusti/PomodoroApp/releases/download/plasmoid-v1.0.0/io.github.akamusti.pomodoro.plasmoid)
+(see the [release notes](https://github.com/akamusti/PomodoroApp/releases/tag/plasmoid-v1.0.0))
+and install it either without a terminal
 
 - right-click the panel → **Enter Edit Mode** → **Add or Manage Widgets…** →
-  **Get New Widgets…** → **Install Widget From Local File…**, then pick the downloaded file,
+  **Get New…** → **Install Widget From Local File…**, then pick the downloaded file,
 
 or with one command:
 
