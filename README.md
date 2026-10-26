@@ -95,25 +95,41 @@ also works when PomodoroApp itself is not running.
 
 ### Install
 
-Requires KDE Plasma 6 (`kpackagetool6`):
+You only need KDE Plasma 6 — no build step and no repository checkout required.
+
+**From the latest release (recommended):** download
+[`io.github.akamusti.pomodoro.plasmoid`](https://github.com/akamusti/PomodoroApp/releases/latest/download/io.github.akamusti.pomodoro.plasmoid) and install it either without a terminal
+
+- right-click the panel → **Enter Edit Mode** → **Add or Manage Widgets…** →
+  **Get New Widgets…** → **Install Widget From Local File…**, then pick the downloaded file,
+
+or with one command:
+
+```bash
+kpackagetool6 --type Plasma/Applet --install ~/Downloads/io.github.akamusti.pomodoro.plasmoid
+```
+
+**From source:**
 
 ```bash
 ./scripts/install-plasmoid.sh
 ```
 
 Then right-click the panel → **Add or Manage Widgets…** → search for **Pomodoro** and drag it
-onto the panel.
+onto the panel. If it does not show up yet, run
+`systemctl --user restart plasma-plasmashell.service`.
 
 - **Left click:** open the timer popup
 - **Middle click:** start / pause
 - **Right click → Configure…:** durations, cycle length, auto-start, notifications, sound and
   panel display options (seconds, icon, progress line)
 
-Remove it again with:
+Update an installed copy with
+`kpackagetool6 --type Plasma/Applet --upgrade ~/Downloads/io.github.akamusti.pomodoro.plasmoid`,
+and remove it with `./scripts/install-plasmoid.sh --remove`.
 
-```bash
-./scripts/install-plasmoid.sh --remove
-```
+Maintainers can rebuild the downloadable archive with `./scripts/package-plasmoid.sh` and
+publish it with `gh release create <tag> dist/io.github.akamusti.pomodoro.plasmoid`.
 
 The timer logic is a pure JavaScript module with unit tests:
 
