@@ -6,25 +6,45 @@ running while PomodoroApp is closed.
 
 ## Install
 
-You only need KDE Plasma 6; you do **not** need to clone this repository or build the Tauri app.
+You only need KDE Plasma 6; there is no build step and no repository checkout.
 
-### Option A — download the ready-made package (recommended)
+### Option A — install the downloaded package (recommended)
 
-Download [`io.github.akamusti.pomodoro.plasmoid`][plasmoid-release] from the widget release and
-install it with one command:
+1. Download [`io.github.akamusti.pomodoro.plasmoid`][plasmoid-release] (about 14 KB).
+2. Install it, either from the panel or from a terminal.
 
-```bash
-curl -fL -o ~/Downloads/io.github.akamusti.pomodoro.plasmoid \
-  https://github.com/akamusti/PomodoroApp/releases/download/plasmoid-v1.0.0/io.github.akamusti.pomodoro.plasmoid
+   **From the panel (no terminal):**
 
-kpackagetool6 --type Plasma/Applet --install ~/Downloads/io.github.akamusti.pomodoro.plasmoid
-```
+   1. Right-click the panel → **Enter Edit Mode** (*Düzenleme Kipine Gir*).
+   2. Click **Add or Manage Widgets…** (*Araç Takımları Ekle veya Yönet…*).
+   3. Click **Get New…** (*Yeni Al…*) → **Install Widget From Local File…**
+      (*Yerel Dosyadan Araç Takımı Kur…*) and choose the downloaded `.plasmoid` file.
 
-Or install it without a terminal:
+   **From a terminal:**
 
-1. Right-click the panel → **Enter Edit Mode** → **Add or Manage Widgets…**
-2. Open **Get New…** → **Install Widget From Local File…**
-3. Pick the downloaded `.plasmoid` file, then drag **Pomodoro** from the list onto the panel.
+   ```bash
+   kpackagetool6 --type Plasma/Applet --install ~/Downloads/io.github.akamusti.pomodoro.plasmoid
+   ```
+
+   Or download and install in one go:
+
+   ```bash
+   curl -fL -o ~/Downloads/io.github.akamusti.pomodoro.plasmoid \
+     https://github.com/akamusti/PomodoroApp/releases/download/plasmoid-v1.0.0/io.github.akamusti.pomodoro.plasmoid
+   kpackagetool6 --type Plasma/Applet --install ~/Downloads/io.github.akamusti.pomodoro.plasmoid
+   ```
+
+3. Add it to the panel: **Add or Manage Widgets…** → search for **Pomodoro** → drag it onto the
+   panel.
+
+> **Double-clicking the file opens Ark — that is expected.** A `.plasmoid` file is really a ZIP
+> archive, so Dolphin hands it to Ark. You do **not** need to extract it, and extracting it does
+> not install anything. Close Ark and install the file as it is with the steps above.
+
+> **Already extracted the archive?** The extracted folder is the same package and can be
+> installed instead:
+> `kpackagetool6 --type Plasma/Applet --install ~/Downloads/io.github.akamusti.pomodoro`.
+> Installing the original `.plasmoid` file is still the simpler option.
 
 ### Option B — install from source
 
@@ -56,6 +76,15 @@ kpackagetool6 --type Plasma/Applet --upgrade ~/Downloads/io.github.akamusti.pomo
 ```bash
 kpackagetool6 --type Plasma/Applet --remove io.github.akamusti.pomodoro
 ```
+
+### Troubleshooting
+
+| Problem | Fix |
+| --- | --- |
+| `kpackagetool6` reports that the widget is already installed | Use `--upgrade` instead of `--install` (see [Update](#update)). |
+| **Pomodoro** is missing from the widget list | Reload the shell: `systemctl --user restart plasma-plasmashell.service`. |
+| No notification or chime when a phase ends | Install the optional helpers, e.g. on Fedora `sudo dnf install libnotify libcanberra`. |
+| The file opens in Ark / shows a ZIP icon | Expected, see the note above — do not extract it. |
 
 ### Requirements
 

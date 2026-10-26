@@ -97,29 +97,35 @@ also works when PomodoroApp itself is not running.
 
 You only need KDE Plasma 6 — no build step and no repository checkout required.
 
-**From the widget release (recommended):** download
+**1. Download**
 [`io.github.akamusti.pomodoro.plasmoid`](https://github.com/akamusti/PomodoroApp/releases/download/plasmoid-v1.0.0/io.github.akamusti.pomodoro.plasmoid)
-(see the [release notes](https://github.com/akamusti/PomodoroApp/releases/tag/plasmoid-v1.0.0))
-and install it either without a terminal
+(about 14 KB, see the [release notes](https://github.com/akamusti/PomodoroApp/releases/tag/plasmoid-v1.0.0)).
 
-- right-click the panel → **Enter Edit Mode** → **Add or Manage Widgets…** →
-  **Get New…** → **Install Widget From Local File…**, then pick the downloaded file,
+> **The file is a ZIP archive, so double-clicking it opens Ark.** That is normal — you do **not**
+> need to extract it. Close Ark and install the file as it is.
 
-or with one command:
+**2. Install it** — either from the panel
+
+- right-click the panel → **Enter Edit Mode** (*Düzenleme Kipine Gir*)
+- **Add or Manage Widgets…** (*Araç Takımları Ekle veya Yönet…*) → **Get New…** (*Yeni Al…*)
+  → **Install Widget From Local File…** (*Yerel Dosyadan Araç Takımı Kur…*)
+- choose the downloaded `.plasmoid` file
+
+or from a terminal:
 
 ```bash
 kpackagetool6 --type Plasma/Applet --install ~/Downloads/io.github.akamusti.pomodoro.plasmoid
 ```
+
+**3. Add it to the panel:** **Add or Manage Widgets…** → search for **Pomodoro** → drag it onto
+the panel. If it does not show up yet, run
+`systemctl --user restart plasma-plasmashell.service`.
 
 **From source:**
 
 ```bash
 ./scripts/install-plasmoid.sh
 ```
-
-Then right-click the panel → **Add or Manage Widgets…** → search for **Pomodoro** and drag it
-onto the panel. If it does not show up yet, run
-`systemctl --user restart plasma-plasmashell.service`.
 
 - **Left click:** open the timer popup
 - **Middle click:** start / pause
@@ -131,7 +137,8 @@ Update an installed copy with
 and remove it with `./scripts/install-plasmoid.sh --remove`.
 
 Maintainers can rebuild the downloadable archive with `./scripts/package-plasmoid.sh` and
-publish it with `gh release create <tag> dist/io.github.akamusti.pomodoro.plasmoid`.
+publish it with `gh release create <tag> dist/io.github.akamusti.pomodoro.plasmoid --latest=false`
+(the flag keeps the desktop app release as the repository's latest release).
 
 The timer logic is a pure JavaScript module with unit tests:
 
