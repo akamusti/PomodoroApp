@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="tomatoBody" x1="0.35" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#ef6a4f"/>
+      <stop offset="1" stop-color="#c93f2c"/>
+    </linearGradient>
+  </defs>
+  <rect x="31" y="9" width="2.4" height="10" rx="1.2" fill="#3f7a4a"/>
+  <path fill="url(#tomatoBody)" d="M32 17.5c12.4 0 21.5 8.4 21.5 19.7C53.5 49.4 43.7 58 32 58S10.5 49.4 10.5 37.2C10.5 25.9 19.6 17.5 32 17.5z"/>
+  <path fill="#4c8c5a" d="M32 20.2c-1.7-4.4-5-7.2-9.8-8 1 4 3.4 6.7 7 7.7-4.5-.5-8.2 1-10.9 4.3 5.4 1.5 10 .3 13.1-3.3 3.1 3.6 7.9 4.7 13.2 3.3-2.7-3.3-6.4-4.8-10.9-4.3 3.6-1 6-3.7 7-7.7-4.8.8-8.1 3.6-9.8 8z"/>
+  <ellipse cx="23.5" cy="31.5" rx="6.2" ry="8.2" fill="#ffffff" opacity="0.18" transform="rotate(-24 23.5 31.5)"/>
+</svg>

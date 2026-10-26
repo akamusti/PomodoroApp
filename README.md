@@ -83,6 +83,46 @@ Compatible with almost all modern distributions (Fedora, Ubuntu, Arch Linux, Deb
 
 ---
 
+## 🖥️ KDE Plasma Panel Widget
+
+The [`kde-plasmoid/`](kde-plasmoid/) directory contains a native KDE Plasma 6 panel widget
+(Turkish UI). It keeps the remaining time visible in the panel instead of hiding it behind a
+tray icon, and its popup offers the full countdown, cycle progress and start/pause/reset/skip
+controls plus desktop notifications and a completion chime.
+
+The widget ships its own timer state machine and runs independently of the desktop app, so it
+also works when PomodoroApp itself is not running.
+
+### Install
+
+Requires KDE Plasma 6 (`kpackagetool6`):
+
+```bash
+./scripts/install-plasmoid.sh
+```
+
+Then right-click the panel → **Add or Manage Widgets…** → search for **Pomodoro** and drag it
+onto the panel.
+
+- **Left click:** open the timer popup
+- **Middle click:** start / pause
+- **Right click → Configure…:** durations, cycle length, auto-start, notifications, sound and
+  panel display options (seconds, icon, progress line)
+
+Remove it again with:
+
+```bash
+./scripts/install-plasmoid.sh --remove
+```
+
+The timer logic is a pure JavaScript module with unit tests:
+
+```bash
+node --test tests/kde-plasmoid-engine.test.mjs
+```
+
+---
+
 ## 🛠️ Building From Source
 
 If you prefer to compile from source or contribute to development:
