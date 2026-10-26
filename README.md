@@ -106,9 +106,8 @@ You only need KDE Plasma 6 — no build step and no repository checkout required
 
 **2. Install it** — either from the panel
 
-- right-click the panel → **Enter Edit Mode** (*Düzenleme Kipine Gir*)
-- **Add or Manage Widgets…** (*Araç Takımları Ekle veya Yönet…*) → **Get New…** (*Yeni Al…*)
-  → **Install Widget From Local File…** (*Yerel Dosyadan Araç Takımı Kur…*)
+- right-click the panel → **Enter Edit Mode**
+- **Add or Manage Widgets…** → **Get New…** → **Install Widget From Local File…**
 - choose the downloaded `.plasmoid` file
 
 or from a terminal:

@@ -15,10 +15,10 @@ You only need KDE Plasma 6; there is no build step and no repository checkout.
 
    **From the panel (no terminal):**
 
-   1. Right-click the panel → **Enter Edit Mode** (*Düzenleme Kipine Gir*).
-   2. Click **Add or Manage Widgets…** (*Araç Takımları Ekle veya Yönet…*).
-   3. Click **Get New…** (*Yeni Al…*) → **Install Widget From Local File…**
-      (*Yerel Dosyadan Araç Takımı Kur…*) and choose the downloaded `.plasmoid` file.
+   1. Right-click the panel → **Enter Edit Mode**.
+   2. Click **Add or Manage Widgets…**.
+   3. Click **Get New…** → **Install Widget From Local File…** and choose the downloaded
+      `.plasmoid` file.
 
    **From a terminal:**
 
@@ -98,8 +98,8 @@ kpackagetool6 --type Plasma/Applet --remove io.github.akamusti.pomodoro
 
 - **Panel readout:** tomato / coffee icon plus `mm:ss` (or `NN dk` when seconds are hidden),
   with an optional thin progress line along the panel edge.
-- **Popup:** phase badge, cycle position (`OTURUM 2 / 4`), large countdown, progress bar,
-  cycle dots and `Sıfırla` / `Başlat` / `Duraklat` / `Atla` controls.
+- **Popup:** phase badge, cycle position (for example session 2 of 4), large countdown,
+  progress bar, cycle dots and reset / start / pause / skip controls.
 - **Settings page:** focus, short break and long break durations, sessions per cycle,
   auto-start for breaks and focus sessions, desktop notifications, sound, and panel display
   options.
