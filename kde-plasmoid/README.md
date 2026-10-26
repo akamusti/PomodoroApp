@@ -1,7 +1,7 @@
 # Pomodoro — KDE Plasma 6 panel widget
 
 A native Plasma panel applet that shows how much time is left in the current Pomodoro phase.
-The UI is Turkish and the timer is fully independent of the Tauri desktop app: it keeps
+The UI is English and the timer is fully independent of the Tauri desktop app: it keeps
 running while PomodoroApp is closed.
 
 ## Install
@@ -30,7 +30,7 @@ You only need KDE Plasma 6; there is no build step and no repository checkout.
 
    ```bash
    curl -fL -o ~/Downloads/io.github.akamusti.pomodoro.plasmoid \
-     https://github.com/akamusti/PomodoroApp/releases/download/plasmoid-v1.0.0/io.github.akamusti.pomodoro.plasmoid
+     https://github.com/akamusti/PomodoroApp/releases/download/plasmoid-v1.1.0/io.github.akamusti.pomodoro.plasmoid
    kpackagetool6 --type Plasma/Applet --install ~/Downloads/io.github.akamusti.pomodoro.plasmoid
    ```
 
@@ -92,7 +92,7 @@ kpackagetool6 --type Plasma/Applet --remove io.github.akamusti.pomodoro
 - `notify-send` and `canberra-gtk-play` are optional; without them the widget still runs, it
   just cannot show desktop notifications or play the completion chime.
 
-[plasmoid-release]: https://github.com/akamusti/PomodoroApp/releases/tag/plasmoid-v1.0.0
+[plasmoid-release]: https://github.com/akamusti/PomodoroApp/releases/tag/plasmoid-v1.1.0
 
 ## Features
 

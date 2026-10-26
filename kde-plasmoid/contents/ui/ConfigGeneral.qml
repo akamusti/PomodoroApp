@@ -31,7 +31,7 @@ KCM.SimpleKCM {
             id: workSpin
             from: 1
             to: 180
-            Kirigami.FormData.label: "Odak süresi (dk):"
+            Kirigami.FormData.label: "Focus duration (min):"
             onValueModified: root.configurationChanged()
         }
 
@@ -39,7 +39,7 @@ KCM.SimpleKCM {
             id: shortBreakSpin
             from: 1
             to: 60
-            Kirigami.FormData.label: "Kısa mola (dk):"
+            Kirigami.FormData.label: "Short break (min):"
             onValueModified: root.configurationChanged()
         }
 
@@ -47,7 +47,7 @@ KCM.SimpleKCM {
             id: longBreakSpin
             from: 1
             to: 90
-            Kirigami.FormData.label: "Uzun mola (dk):"
+            Kirigami.FormData.label: "Long break (min):"
             onValueModified: root.configurationChanged()
         }
 
@@ -55,59 +55,59 @@ KCM.SimpleKCM {
             id: intervalSpin
             from: 1
             to: 12
-            Kirigami.FormData.label: "Uzun moladan önceki oturum:"
+            Kirigami.FormData.label: "Sessions before a long break:"
             onValueModified: root.configurationChanged()
         }
 
         Item {
             Kirigami.FormData.isSection: true
-            Kirigami.FormData.label: "Davranış"
+            Kirigami.FormData.label: "Behavior"
         }
 
         PlasmaComponents3.CheckBox {
             id: autoStartBreaksCheck
-            text: "Molalar otomatik başlasın"
+            text: "Start breaks automatically"
             onToggled: root.configurationChanged()
         }
 
         PlasmaComponents3.CheckBox {
             id: autoStartFocusCheck
-            text: "Odak oturumları otomatik başlasın"
+            text: "Start focus sessions automatically"
             onToggled: root.configurationChanged()
         }
 
         PlasmaComponents3.CheckBox {
             id: notificationsCheck
-            text: "Masaüstü bildirimleri"
+            text: "Desktop notifications"
             onToggled: root.configurationChanged()
         }
 
         PlasmaComponents3.CheckBox {
             id: soundCheck
-            text: "Sesli uyarı"
+            text: "Sound cue"
             onToggled: root.configurationChanged()
         }
 
         Item {
             Kirigami.FormData.isSection: true
-            Kirigami.FormData.label: "Panel görünümü"
+            Kirigami.FormData.label: "Panel appearance"
         }
 
         PlasmaComponents3.CheckBox {
             id: showSecondsCheck
-            text: "Saniyeleri göster"
+            text: "Show seconds"
             onToggled: root.configurationChanged()
         }
 
         PlasmaComponents3.CheckBox {
             id: showIconCheck
-            text: "Simgeyi göster"
+            text: "Show icon"
             onToggled: root.configurationChanged()
         }
 
         PlasmaComponents3.CheckBox {
             id: showProgressCheck
-            text: "İlerleme çubuğunu göster"
+            text: "Show progress line"
             onToggled: root.configurationChanged()
         }
     }

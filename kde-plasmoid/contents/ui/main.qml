@@ -29,9 +29,9 @@ PlasmoidItem {
     readonly property bool showIcon: Plasmoid.configuration.showIcon
     readonly property bool showProgress: Plasmoid.configuration.showProgress
 
-    readonly property string phaseLabel: phase === "shortBreak" ? "Kısa Mola"
-                                       : phase === "longBreak" ? "Uzun Mola"
-                                       : "Odak"
+    readonly property string phaseLabel: phase === "shortBreak" ? "Short Break"
+                                       : phase === "longBreak" ? "Long Break"
+                                       : "Focus"
     readonly property color accentColor: phase === "shortBreak" ? "#3b8561"
                                        : phase === "longBreak" ? "#3d7294"
                                        : "#d94e34"
@@ -46,10 +46,10 @@ PlasmoidItem {
     readonly property string timeText: root.formatClock(remainingMs)
     readonly property string compactTimeText: showSeconds
         ? timeText
-        : Math.max(1, Math.ceil(remainingMs / 60000)) + " dk"
-    readonly property string stateLabel: running ? "Devam ediyor"
-                                       : started ? "Duraklatıldı"
-                                       : "Hazır"
+        : Math.max(1, Math.ceil(remainingMs / 60000)) + " min"
+    readonly property string stateLabel: running ? "Running"
+                                       : started ? "Paused"
+                                       : "Ready"
 
     // Re-evaluated whenever a preference changes, so the engine can adopt new durations.
     readonly property var engineSettings: ({
@@ -64,9 +64,9 @@ PlasmoidItem {
     onEngineSettingsChanged: root.applySettings()
 
     toolTipMainText: "Pomodoro · " + root.phaseLabel
-    toolTipSubText: root.timeText + " kaldı"
-        + "\nOturum " + root.session + " / " + root.interval + " · " + root.stateLabel
-        + "\nOrta tık: başlat / duraklat"
+    toolTipSubText: root.timeText + " left"
+        + "\nSession " + root.session + " / " + root.interval + " · " + root.stateLabel
+        + "\nMiddle click: start / pause"
     toolTipTextFormat: Text.PlainText
 
     compactRepresentation: CompactRepresentation {
@@ -94,21 +94,21 @@ PlasmoidItem {
 
     PlasmaCore.Action {
         id: toggleAction
-        text: root.running ? "Duraklat" : "Başlat"
+        text: root.running ? "Pause" : "Start"
         icon.name: root.running ? "media-playback-pause" : "media-playback-start"
         onTriggered: root.toggle()
     }
 
     PlasmaCore.Action {
         id: resetAction
-        text: "Sıfırla"
+        text: "Reset"
         icon.name: "view-refresh"
         onTriggered: root.reset()
     }
 
     PlasmaCore.Action {
         id: skipAction
-        text: "Sonraki aşama"
+        text: "Next phase"
         icon.name: "media-skip-forward"
         onTriggered: root.skip()
     }
@@ -182,14 +182,14 @@ PlasmoidItem {
 
     function announce(finishedPhase) {
         var nextMinutes = Math.max(1, Math.round(root.phaseTotalMs / 60000));
-        var title = finishedPhase === "work" ? "Odak oturumu tamamlandı" : "Mola tamamlandı";
+        var title = finishedPhase === "work" ? "Focus session complete" : "Break complete";
         var body;
 
         if (finishedPhase === "work") {
-            body = (root.phase === "longBreak" ? "Uzun mola" : "Kısa mola")
-                + " zamanı (" + nextMinutes + " dk).";
+            body = (root.phase === "longBreak" ? "Long break" : "Short break")
+                + " time (" + nextMinutes + " min).";
         } else {
-            body = "Yeni odak oturumu hazır (" + nextMinutes + " dk).";
+            body = "A new focus session is ready (" + nextMinutes + " min).";
         }
 
         if (Plasmoid.configuration.notificationsEnabled) {

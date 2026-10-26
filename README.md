@@ -86,7 +86,7 @@ Compatible with almost all modern distributions (Fedora, Ubuntu, Arch Linux, Deb
 ## 🖥️ KDE Plasma Panel Widget
 
 The [`kde-plasmoid/`](kde-plasmoid/) directory contains a native KDE Plasma 6 panel widget
-(Turkish UI). It keeps the remaining time visible in the panel instead of hiding it behind a
+(English UI). It keeps the remaining time visible in the panel instead of hiding it behind a
 tray icon, and its popup offers the full countdown, cycle progress and start/pause/reset/skip
 controls plus desktop notifications and a completion chime.
 
@@ -98,8 +98,8 @@ also works when PomodoroApp itself is not running.
 You only need KDE Plasma 6 — no build step and no repository checkout required.
 
 **1. Download**
-[`io.github.akamusti.pomodoro.plasmoid`](https://github.com/akamusti/PomodoroApp/releases/download/plasmoid-v1.0.0/io.github.akamusti.pomodoro.plasmoid)
-(about 14 KB, see the [release notes](https://github.com/akamusti/PomodoroApp/releases/tag/plasmoid-v1.0.0)).
+[`io.github.akamusti.pomodoro.plasmoid`](https://github.com/akamusti/PomodoroApp/releases/download/plasmoid-v1.1.0/io.github.akamusti.pomodoro.plasmoid)
+(about 14 KB, see the [release notes](https://github.com/akamusti/PomodoroApp/releases/tag/plasmoid-v1.1.0)).
 
 > **The file is a ZIP archive, so double-clicking it opens Ark.** That is normal — you do **not**
 > need to extract it. Close Ark and install the file as it is.

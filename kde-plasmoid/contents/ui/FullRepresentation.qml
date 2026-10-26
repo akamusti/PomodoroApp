@@ -82,7 +82,7 @@ Item {
             }
 
             PlasmaComponents3.Label {
-                text: "OTURUM " + full.applet.session + " / " + full.applet.interval
+                text: "SESSION " + full.applet.session + " / " + full.applet.interval
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
                 font.capitalization: Font.AllUppercase
                 font.letterSpacing: 0.6
@@ -91,7 +91,7 @@ Item {
 
             PlasmaComponents3.ToolButton {
                 icon.name: "configure"
-                Accessible.name: "Ayarlar"
+                Accessible.name: "Settings"
                 onClicked: {
                     full.applet.expanded = false;
                     const action = Plasmoid.internalAction("configure");
@@ -163,14 +163,14 @@ Item {
 
             PlasmaComponents3.Button {
                 Layout.fillWidth: true
-                text: "Sıfırla"
+                text: "Reset"
                 icon.name: "view-refresh"
                 onClicked: full.applet.reset()
             }
 
             PlasmaComponents3.Button {
                 Layout.fillWidth: true
-                text: full.applet.running ? "Duraklat" : "Başlat"
+                text: full.applet.running ? "Pause" : "Start"
                 icon.name: full.applet.running ? "media-playback-pause" : "media-playback-start"
                 highlighted: true
                 onClicked: full.applet.toggle()
@@ -178,7 +178,7 @@ Item {
 
             PlasmaComponents3.Button {
                 Layout.fillWidth: true
-                text: "Atla"
+                text: "Skip"
                 icon.name: "media-skip-forward"
                 onClicked: full.applet.skip()
             }

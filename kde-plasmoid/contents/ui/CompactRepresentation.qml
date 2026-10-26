@@ -35,7 +35,7 @@ Item {
     }
     readonly property string reservedText: applet.showSeconds
         ? "0".repeat(minuteDigits) + ":00"
-        : "0".repeat(minuteDigits) + " dk"
+        : "0".repeat(minuteDigits) + " min"
 
     implicitWidth: verticalPanel ? verticalContent.implicitWidth : horizontalContent.implicitWidth
     implicitHeight: verticalPanel ? verticalContent.implicitHeight : horizontalContent.implicitHeight

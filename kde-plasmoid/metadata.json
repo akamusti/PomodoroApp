@@ -8,22 +8,17 @@
         ],
         "Category": "Utilities",
         "Description": "Pomodoro timer that shows the remaining time in the panel",
-        "Description[tr]": "Kalan süreyi panelde gösteren Pomodoro zamanlayıcısı",
         "Icon": "chronometer",
         "Id": "io.github.akamusti.pomodoro",
         "Keywords": [
             "pomodoro",
             "timer",
             "focus",
-            "clock",
-            "zamanlayıcı",
-            "sayaç",
-            "odak"
+            "clock"
         ],
         "License": "GPL-3.0-or-later",
         "Name": "Pomodoro",
-        "Name[tr]": "Pomodoro",
-        "Version": "1.0.0",
+        "Version": "1.1.0",
         "Website": "https://github.com/akamusti/PomodoroApp",
         "BugReportUrl": "https://github.com/akamusti/PomodoroApp/issues"
     },
